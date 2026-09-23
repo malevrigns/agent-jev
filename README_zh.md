@@ -183,7 +183,7 @@ Laya 的 ModernBERT 是双向编码器，没有因果前缀缝隙：64 个选项
 
 ## 跑起来
 
-权重在 [https://huggingface.co/aimeigaoshou/agent-jev](https://huggingface.co/aimeigaoshou/agent-jev)，是一份 safetensors 状态字典。这个 git 仓库是代码。服务要的是 torch checkpoint，所以先包一层。
+v1 权重是 [不可变 v1 修订版](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1)上的 safetensors 状态字典。这个 git 仓库是代码。服务要的是 torch checkpoint，所以先包一层。安装项目依赖前，请通过 [PyTorch 官方选择器](https://pytorch.org/get-started/locally/)安装适合硬件的 PyTorch；`requirements.txt` 要求 `torch>=2.0.0`。
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
@@ -198,9 +198,10 @@ from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 import torch
 
-src = hf_hub_download("aimeigaoshou/agent-jev", "model.safetensors")
+V1_REVISION = "7d433994fbde17a3f0993c2f2b02fe8ca1370db1"
+src = hf_hub_download("aimeigaoshou/agent-jev", "model.safetensors", revision=V1_REVISION)
 torch.save({"state_dict": load_file(src)}, "agentjev_v1.pt")
-hf_hub_download("aimeigaoshou/agent-jev", "temperatures.json", local_dir=".")
+hf_hub_download("aimeigaoshou/agent-jev", "temperatures.json", revision=V1_REVISION, local_dir=".")
 ```
 
 ```bash
@@ -211,7 +212,7 @@ python -m jev_service.server \
   --port 8149
 ```
 
-`model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。`AgentJevModel` 先搭好 Qwen3 骨架，再用 `load_state_dict(..., strict=True)` 盖掉。加载时用 `dtype=torch.bfloat16`，张量就是这个精度。
+`model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。`AgentJevModel` 先搭好 Qwen3 骨架，再用 `load_state_dict(..., strict=True)` 盖掉。公开张量是 float32；加载模型时保持 `dtype=torch.float32`（默认值）以匹配张量。
 
 进程只绑 **127.0.0.1**。工作台在 [http://127.0.0.1:8149/](http://127.0.0.1:8149/)。`GET /health` 和 `GET /api/info` 返回当前加载的权重。上表对应的是第 600 步选出的 checkpoint。这次公开的张量就是那一轮。
 
