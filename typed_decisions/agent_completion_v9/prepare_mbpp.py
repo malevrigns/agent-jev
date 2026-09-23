@@ -12,8 +12,8 @@ import sys
 ROOT=Path(__file__).resolve().parent
 sys.path.insert(0,str(ROOT.parents[1]))
 from jev_service.contract import prepare
-from typed_decisions.agent_completion_v8_run02.canonical import canonicalize
-from typed_decisions.agent_completion_v8_run02.audit_data import signature
+from typed_decisions.agent_completion_v9.canonical import canonicalize
+from typed_decisions.agent_completion_v9.audit_data import signature
 
 
 def mutants(code,seed):
