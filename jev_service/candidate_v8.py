@@ -4,7 +4,7 @@ import copy
 from http.server import ThreadingHTTPServer
 import json
 
-from typed_decisions.agent_completion_v8_run02.canonical import canonicalize
+from typed_decisions.agent_completion_v9.canonical import canonicalize
 from .contract import prepare
 from .engine import DecisionEngine
 from .server import make_handler
@@ -25,7 +25,7 @@ class CandidateEngine(DecisionEngine):
         return super().evaluate(normalize_request(payload))
 
     def info(self):
-        return {**super().info(),'normalization':'v8_run02 canonicalize','release_status':'candidate'}
+        return {**super().info(),'normalization':'coding-state-v1','release_status':'candidate'}
 
 
 def main():
