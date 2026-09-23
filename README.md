@@ -183,7 +183,7 @@ Laya's ModernBERT backbone has no causal prefix seam: each candidate in a 64-opt
 
 ## Run it
 
-The weights are the safetensors state dict at [https://huggingface.co/aimeigaoshou/agent-jev](https://huggingface.co/aimeigaoshou/agent-jev). This git tree has the code. The server still wants a torch checkpoint, so wrap the file once.
+The v1 weights are the safetensors state dict at [the immutable v1 revision](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1). This git tree has the code. The server still wants a torch checkpoint, so wrap the file once. Install a PyTorch build for your hardware with the [official selector](https://pytorch.org/get-started/locally/) before installing the project dependencies; `requirements.txt` includes `torch>=2.0.0`.
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
@@ -198,9 +198,10 @@ from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 import torch
 
-src = hf_hub_download("aimeigaoshou/agent-jev", "model.safetensors")
+V1_REVISION = "7d433994fbde17a3f0993c2f2b02fe8ca1370db1"
+src = hf_hub_download("aimeigaoshou/agent-jev", "model.safetensors", revision=V1_REVISION)
 torch.save({"state_dict": load_file(src)}, "agentjev_v1.pt")
-hf_hub_download("aimeigaoshou/agent-jev", "temperatures.json", local_dir=".")
+hf_hub_download("aimeigaoshou/agent-jev", "temperatures.json", revision=V1_REVISION, local_dir=".")
 ```
 
 ```bash
@@ -211,7 +212,7 @@ python -m jev_service.server \
   --port 8149
 ```
 
-`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. Use `dtype=torch.bfloat16` for that load. The tensors are bf16.
+`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. The published tensors are float32; keep the model load at `dtype=torch.float32` (the default) to match them.
 
 The process binds **127.0.0.1** only. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
 
