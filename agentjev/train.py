@@ -29,7 +29,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
 from agentjev.data import (AgentJevDataset, SourceMixer, batch_to_device,
-                           make_collate)
+                           make_collate, pin_batch_memory)
 from agentjev.losses import compute_losses
 from agentjev.model import AgentJevModel
 
@@ -101,7 +101,11 @@ def main():
         tokenizer.pad_token = tokenizer.eos_token
 
     collate = make_collate(tokenizer, max_len=cfg.get("max_len", 512),
-                           max_state_tokens=cfg.get("max_state_tokens", 256))
+                           max_state_tokens=cfg.get("max_state_tokens", 256),
+                           encoder_impl=cfg.get("encoder_impl", "path"),
+                           tree_max_mask_bytes=cfg.get("tree_max_mask_bytes", 64 * 1024 * 1024),
+                           tree_attention_impl=cfg.get("tree_attention_impl", "auto"))
+    pin_memory = device.type == "cuda" and cfg.get("pin_memory", True)
     mixer = None
     loader = None
     if cfg.get("data_sources"):
@@ -114,7 +118,7 @@ def main():
         dataset = AgentJevDataset(cfg["data_path"])
         loader = DataLoader(dataset, batch_size=cfg["batch_states"], shuffle=True,
                             collate_fn=collate, drop_last=False,
-                            num_workers=0, pin_memory=False)
+                            num_workers=0, pin_memory=pin_memory)
 
     if args.dry_run:
         print("[dry_run] config loaded; sampling 3 batches through the mixer "
@@ -152,6 +156,8 @@ def main():
         set_heads=cfg.get("set_heads", 4),
         encoder_impl=cfg.get("encoder_impl", "path"),
         dtype=torch.float32,
+        tree_max_mask_bytes=cfg.get("tree_max_mask_bytes", 64 * 1024 * 1024),
+        tree_attention_impl=cfg.get("tree_attention_impl", "auto"),
     ).to(device)
     model.train()
 
@@ -212,7 +218,9 @@ def main():
             except StopIteration:
                 loader_iter = iter(loader)
                 batch = next(loader_iter)
-        batch = batch_to_device(batch, device)
+        if mixer is not None and pin_memory:
+            batch = pin_batch_memory(batch)
+        batch = batch_to_device(batch, device, non_blocking=pin_memory)
 
         with torch.autocast("cuda", dtype=torch.bfloat16):
             outputs = model(batch, perm_reg=perm_reg)
@@ -243,7 +251,7 @@ def main():
         # Only count data that actually contributed to the window.
         win_micro += 1
         win_n_micro += 1
-        n_tok = int(batch["attention_mask"].sum())
+        n_tok = batch["n_valid_tokens"]
         win_states += batch["n_states"]
         win_tokens += n_tok
         win_questions += batch["n_questions"]
