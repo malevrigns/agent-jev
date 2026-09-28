@@ -183,35 +183,29 @@ Laya's ModernBERT backbone has no causal prefix seam: each candidate in a 64-opt
 
 ## Run it
 
-The weights are the safetensors state dict at [https://huggingface.co/aimeigaoshou/agent-jev](https://huggingface.co/aimeigaoshou/agent-jev). This git tree has the code. The server still wants a torch checkpoint, so wrap the file once.
+The v1 weights are the safetensors state dict at [the immutable v1 revision](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1). This git tree has the code. The server wants a torch checkpoint, so the release files are fetched and wrapped once. Install a PyTorch build for your hardware with the [official selector](https://pytorch.org/get-started/locally/) before the requirements below; `requirements.txt` requires `torch>=2.0.0`.
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
 cd agent-jev
 python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install huggingface_hub safetensors
+python fetch_v1_weights.py
 ```
 
-```python
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file
-import torch
-
-src = hf_hub_download("aimeigaoshou/agent-jev", "model.safetensors")
-torch.save({"state_dict": load_file(src)}, "agentjev_v1.pt")
-hf_hub_download("aimeigaoshou/agent-jev", "temperatures.json", local_dir=".")
-```
+`fetch_v1_weights.py` pins revision `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`, checks the size and SHA-256 of both release files, confirms every tensor is bfloat16, writes `agentjev_v1.pt`, copies `temperatures.json` beside it, and fetches the Qwen3 base model into `models/Qwen3-0.6B`. The tokenizer is loaded with `local_files_only=True`, so a bare repository id for `--model-path` only works when that model is already cached. The script prints the command it has prepared:
 
 ```bash
 python -m jev_service.server \
   --checkpoint agentjev_v1.pt \
-  --model-path Qwen/Qwen3-0.6B \
+  --model-path models/Qwen3-0.6B \
   --temperatures temperatures.json \
   --port 8149
 ```
 
-`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. Use `dtype=torch.bfloat16` for that load. The tensors are bf16.
+`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. Load it at `dtype=torch.bfloat16`: at the pinned revision all 343 tensors are bfloat16, 1,196,881,242 bytes over 598,418,689 parameters. The dtype follows the revision — the repository's default branch now serves a later checkpoint that is float32 and twice the size — which is why the quickstart downloads the pinned revision instead of the default branch.
 
 The process binds **127.0.0.1** only. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
 
@@ -375,6 +369,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | Path | What it is |
 | --- | --- |
 | `agentjev/` | Backbone, candidate head, loss, training entry |
+| `fetch_v1_weights.py` | Pinned, hash-checked v1 weights for serving |
 | `jev_service/` | Loopback server, contract, prefix runtime, workbench |
 | `agentjev_client.py` | Python client |
 | `agentjev_hook.py` | PreToolUse gate |

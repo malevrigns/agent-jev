@@ -183,35 +183,29 @@ Laya 的 ModernBERT 是双向编码器，没有因果前缀缝隙：64 个选项
 
 ## 跑起来
 
-权重在 [https://huggingface.co/aimeigaoshou/agent-jev](https://huggingface.co/aimeigaoshou/agent-jev)，是一份 safetensors 状态字典。这个 git 仓库是代码。服务要的是 torch checkpoint，所以先包一层。
+v1 权重是[不可变 v1 修订版](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1)上的 safetensors 状态字典。这个 git 仓库是代码。服务要的是 torch checkpoint，所以先把发版文件取下来包一层。安装依赖前，请先用 [PyTorch 官方选择器](https://pytorch.org/get-started/locally/)装好适合本机硬件的 PyTorch；`requirements.txt` 要求 `torch>=2.0.0`。
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
 cd agent-jev
 python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install huggingface_hub safetensors
+python fetch_v1_weights.py
 ```
 
-```python
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file
-import torch
-
-src = hf_hub_download("aimeigaoshou/agent-jev", "model.safetensors")
-torch.save({"state_dict": load_file(src)}, "agentjev_v1.pt")
-hf_hub_download("aimeigaoshou/agent-jev", "temperatures.json", local_dir=".")
-```
+`fetch_v1_weights.py` 固定修订版 `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`，校验两个发版文件的字节数和 SHA-256，确认每个张量都是 bfloat16，写出 `agentjev_v1.pt`，把 `temperatures.json` 复制到旁边，并把 Qwen3 底座模型取到 `models/Qwen3-0.6B`。分词器是用 `local_files_only=True` 加载的，所以 `--model-path` 直接写仓库 id，只有在本地已经缓存过该模型时才成立。脚本会把准备好的命令打印出来：
 
 ```bash
 python -m jev_service.server \
   --checkpoint agentjev_v1.pt \
-  --model-path Qwen/Qwen3-0.6B \
+  --model-path models/Qwen3-0.6B \
   --temperatures temperatures.json \
   --port 8149
 ```
 
-`model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。`AgentJevModel` 先搭好 Qwen3 骨架，再用 `load_state_dict(..., strict=True)` 盖掉。加载时用 `dtype=torch.bfloat16`，张量就是这个精度。
+`model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。`AgentJevModel` 先搭好 Qwen3 骨架，再用 `load_state_dict(..., strict=True)` 盖掉。加载时用 `dtype=torch.bfloat16`：在固定的修订版上 343 个张量全部是 bfloat16，1,196,881,242 字节对应 598,418,689 个参数。精度是跟着修订版走的——仓库默认分支现在提供的是另一个 checkpoint，float32、体积翻倍——所以快速开始下载的是固定修订版，而不是默认分支。
 
 进程只绑 **127.0.0.1**。工作台在 [http://127.0.0.1:8149/](http://127.0.0.1:8149/)。`GET /health` 和 `GET /api/info` 返回当前加载的权重。上表对应的是第 600 步选出的 checkpoint。这次公开的张量就是那一轮。
 
@@ -375,6 +369,7 @@ python test_game_suite.py
 | 路径 | 是什么 |
 | --- | --- |
 | `agentjev/` | 骨干、候选头、损失、训练入口 |
+| `fetch_v1_weights.py` | 固定并校验 SHA-256 的 v1 权重，供服务使用 |
 | `jev_service/` | 本机服务、契约、前缀运行时、工作台 |
 | `agentjev_client.py` | Python 客户端 |
 | `agentjev_hook.py` | PreToolUse 门控 |
