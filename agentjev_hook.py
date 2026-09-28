@@ -9,6 +9,7 @@ import sys
 import json
 import urllib.request
 import time
+from pathlib import Path
 
 # Ensure UTF-8 for Windows IO
 if hasattr(sys.stdin, "reconfigure"):
@@ -96,7 +97,7 @@ def main():
         # 记录本地审计日志
         try:
             log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {tool_name} | {msg} | Action: {action_summary[:120]}\n"
-            with open(r"C:\Users\ASUS\agentjev_staging\agentjev_guard.log", "a", encoding="utf-8") as lf:
+            with open(Path(__file__).with_name("agentjev_guard.log"), "a", encoding="utf-8") as lf:
                 lf.write(log_entry)
         except Exception:
             pass
