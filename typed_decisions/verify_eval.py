@@ -2,7 +2,7 @@ import json
 import numpy as np
 from pathlib import Path
 
-ROOT = Path(r'C:\Users\ASUS\agentjev_staging\typed_decisions')
+ROOT = Path(__file__).resolve().parent
 
 def calc_metrics(preds):
     correct = []
