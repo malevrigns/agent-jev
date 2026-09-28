@@ -394,6 +394,110 @@ class SourceMixer:
         }
 
 
+class EpochMixer:
+    """Deterministic multi-source sampler with a real epoch boundary.
+
+    One epoch is exactly one shuffled pass over every source: a source's
+    shuffled index order is consumed once and then the next epoch begins.
+    ``batches_per_epoch`` is therefore a fixed integer known at
+    construction, and a config's ``epochs`` is a true pass count rather
+    than a resample count. ``SourceMixer`` cannot provide this -- it draws
+    a source per batch by weight from a cycling order, so the amount of
+    data in a "step budget" depends on the draw.
+
+    A batch still comes from ONE source, and the last batch of a pass may
+    be SHORT (``drop_last=False`` semantics, matching the DataLoader path)
+    so a pass is an exact partition with no duplicated states.
+
+    Weights order the stream; they no longer size it. Source ``i`` always
+    contributes ``repeat_i * ceil(n_i / batch_states)`` batches per epoch,
+    and the deficit scheduler gives it ~``w_i / sum(w)`` of every PREFIX
+    of the epoch. To oversample a small corpus, raise its ``repeat``.
+    """
+
+    RATE = 1_000_000  # integer Bresenham scale: no float drift
+
+    def __init__(self, specs: list[dict], batch_states: int, seed: int = 0):
+        self.names: list[str] = []
+        self.datasets: list[AgentJevDataset] = []
+        self.weights: list[float] = []
+        self.repeats: list[int] = []
+        for spec in specs:
+            ds = AgentJevDataset(spec["path"], where=spec.get("where"))
+            if len(ds) == 0:
+                raise ValueError(f"empty source: {spec}")
+            self.names.append(spec["name"])
+            self.datasets.append(ds)
+            self.weights.append(float(spec.get("weight", 1.0)))
+            self.repeats.append(int(spec.get("repeat", 1)))
+        if any(w < 0 for w in self.weights) or sum(self.weights) <= 0:
+            raise ValueError("source weights must be >= 0 and not all zero")
+        if any(r < 1 for r in self.repeats):
+            raise ValueError("source repeat must be >= 1")
+        self.batch_states = batch_states
+        self.rng = random.Random(seed)
+        self.sizes = [len(ds) for ds in self.datasets]
+        self.batches_per_source = [
+            r * -(-n // batch_states)  # ceil: the final pass batch may be short
+            for n, r in zip(self.sizes, self.repeats)
+        ]
+        self.batches_per_epoch = sum(self.batches_per_source)
+        total_w = sum(self.weights)
+        self._rates = [max(1, int(round(w / total_w * self.RATE)))
+                       for w in self.weights]
+        self.drawn = [0] * len(self.names)  # batches, since start
+        self.epoch = 0                      # whole-epoch passes started
+        self._start_epoch()
+
+    def _passes(self, i: int) -> list[list[dict]]:
+        """``repeat_i`` shuffled passes over source i, each sliced into batches."""
+        ds, n, bs = self.datasets[i], self.sizes[i], self.batch_states
+        out: list[list[dict]] = []
+        for _ in range(self.repeats[i]):
+            order = list(range(n))
+            self.rng.shuffle(order)
+            out.extend([ds[j] for j in order[k:k + bs]]
+                       for k in range(0, n, bs))
+        return out
+
+    def _start_epoch(self) -> None:
+        self._queues = [self._passes(i) for i in range(len(self.names))]
+        self._cursor = [0] * len(self.names)
+        self._deficit = [0] * len(self.names)
+        self.epoch += 1
+
+    def next_batch(self) -> tuple[str, list[dict]]:
+        if all(self._cursor[i] >= len(self._queues[i])
+               for i in range(len(self.names))):
+            self._start_epoch()
+        active = [i for i in range(len(self.names))
+                  if self._cursor[i] < len(self._queues[i])]
+        # Deficit (Bresenham) scheduling over the ACTIVE sources: rates are
+        # re-normalized each slot, so a drained small source cannot starve
+        # before it is drawn and integer arithmetic cannot drift.
+        total = sum(self._rates[i] for i in active)
+        for i in active:
+            self._deficit[i] += self._rates[i]
+        i = max(active, key=lambda j: (self._deficit[j], -j))  # ties: lowest index
+        self._deficit[i] -= total
+        out = self._queues[i][self._cursor[i]]
+        self._cursor[i] += 1
+        self.drawn[i] += 1
+        return self.names[i], out
+
+    def stats(self) -> dict:
+        return {
+            "names": list(self.names),
+            "sizes": list(self.sizes),
+            "weights": list(self.weights),
+            "repeats": list(self.repeats),
+            "batches_per_source": list(self.batches_per_source),
+            "batches_per_epoch": self.batches_per_epoch,
+            "drawn_batches": list(self.drawn),
+            "epoch": self.epoch,
+        }
+
+
 def _validate_gold(q: dict) -> str | None:
     """Return a rejection reason, or None if the question gold is valid."""
     cands = q.get("candidates") or []
@@ -456,13 +560,20 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256,
         q_index = []
         cand_index = []
         q_rows = []
+        # Question-level metadata for row i of the returned tensors, so a
+        # caller never has to re-derive which question a row belongs to.
+        # Re-derivation is unsound: the acceptance order depends on a
+        # tokenizer-dependent drop ("no token budget for state") that no
+        # gold-level check can predict. None marks the empty-batch
+        # placeholder row.
+        q_meta = []
         sources: dict[str, int] = {}
         dropped: list[dict] = []
         n_trunc_states = 0
         n_trunc_questions = 0
         n_trunc_cands = 0
 
-        for s in states:
+        for si, s in enumerate(states):
             env = s.get("env") or s.get("source", "unknown")
             sid = s.get("id", "?")
             state_text = s["state"]
@@ -472,7 +583,7 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256,
             if len(s_ids) > max_state_tokens:
                 s_ids = s_ids[:max_state_tokens]  # keep the head (task/goal fields)
                 n_trunc_states += 1
-            for q in s["questions"]:
+            for qi_in_state, q in enumerate(s["questions"]):
                 reason = _validate_gold(q)
                 if reason is not None:
                     dropped.append({"id": sid, "reason": reason})
@@ -513,6 +624,15 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256,
                     "ordinal": bool(q.get("ordinal", False)),
                 }
                 q_rows.append(row)
+                q_meta.append({
+                    "id": sid,
+                    "workflow": env,
+                    "qtype": q.get("qtype") or ("score" if q.get("ordinal") else "other"),
+                    "ordinal": bool(q.get("ordinal", False)),
+                    "state_index": si,
+                    "question_index": qi_in_state,
+                    "gold": q["gold"],
+                })
                 for ci, c_ids in enumerate(cand_ids):
                     ids = prefix + c_ids
                     input_ids.append(ids)
@@ -532,6 +652,7 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256,
                 "weight": 0.0,
                 "ordinal": False,
             }]
+            q_meta = [None]  # placeholder: not backed by any real question
 
         # pad paths
         P = len(input_ids)
@@ -586,6 +707,9 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256,
             "sup_type": sup_type,
             "weight": weight,
             "ordinal": ordinal,
+            # Question metadata parallel to row 0..Bq-1 (None = placeholder).
+            # Non-tensor, so batch_to_device/pin_batch_memory pass it through.
+            "q_meta": q_meta,
             "n_states": len(states),
             "n_paths": P,
             "n_valid_tokens": sum(map(len, input_ids)),
