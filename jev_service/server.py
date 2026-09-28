@@ -46,7 +46,8 @@ def main():
     parser.add_argument('--page', help='Optional task-specific workbench HTML')
     args = parser.parse_args()
     from .engine import DecisionEngine
-    engine = DecisionEngine(args.checkpoint, args.model_path, args.device, args.max_tokens, temperatures=args.temperatures)
+    engine = DecisionEngine(args.checkpoint, args.model_path, args.device,
+                            args.max_tokens, temperatures=args.temperatures)
     server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(engine,args.page))
     print(json.dumps({'event': 'ready', 'port': args.port, **engine.info()}), flush=True)
     server.serve_forever()
