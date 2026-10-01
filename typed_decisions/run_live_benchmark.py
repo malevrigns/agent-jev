@@ -4,7 +4,7 @@ import urllib.request
 import numpy as np
 from pathlib import Path
 
-ROOT = Path(r'C:\Users\ASUS\agentjev_staging\typed_decisions')
+ROOT = Path(__file__).resolve().parent
 
 def load_data():
     req_path = ROOT / 'prepared/test_requests.jsonl'
