@@ -8,7 +8,7 @@
 - Boolean：TRUE/FALSE 判断；Choice：2–255 个动态候选；Score：2–10 个有序等级及期望分数。
 - 完整候选文本进入模型，不再只识别 read/edit 之类的工具类别。候选也可以是包含动作参数的 JSON 对象。
 - 问题与选项 ID 只用于对应响应，不进入模型；实际含义必须放在问题和候选描述里。
-- 输入路径最多 2,048 tokens；超长时明确拒绝，不静默截断任务或候选。
+- 输入路径上限取决于加载的 checkpoint：不带 `config` 键的 checkpoint（例如 quickstart 的 v1 发版权重）最多 2,048 tokens，超长时明确拒绝，不静默截断任务或候选；带 `config` 键的训练产物 checkpoint 走训练管线 collate，按 checkpoint 内的 `max_len`（常见为 512）静默截断过长的 state/question/candidate，并在响应的 `usage.truncated_inputs` 中报告计数。同一 checkpoint 升级前后的评分可能因此不同，升级训练权重时请核对该配置。训练模式下 `--encoder` 等 CLI 参数由 checkpoint 内配置覆盖。
 - 独立候选路径微批处理；长前缀、多候选时自动复用每个问题的 KV 前缀，候选分支互不读取，最后统一通过已训练的集合评分头。
 - 网页输入、概率条、原始 API 请求/响应；独立服务可被其他程序调用。
 

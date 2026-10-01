@@ -1,0 +1,57 @@
+# End-to-end smoke for the epoch-based trainer and the TreeEncoder.
+#
+# Generate the data first (ids are seed-scoped, so train and dev do not
+# overlap):
+#   python -m agentjev.synth --out data/synth_train.jsonl --n 64 --seed 0
+#   python -m agentjev.synth --out data/synth_dev.jsonl --n 16 --seed 1
+# then validate config + collate without loading the model:
+#   python -m agentjev.train --config configs/tree_smoke.yaml --dry_run
+# and run:
+#   python -m agentjev.train --config configs/tree_smoke.yaml
+#
+# On a CPU-only machine set device: cpu; expect the branch-forward to be slow.
+model_path: Qwen/Qwen3-0.6B
+data_sources:
+  - name: synth
+    path: data/synth_train.jsonl
+    weight: 1.0
+eval_path: data/synth_dev.jsonl
+out_dir: runs/tree_smoke
+log_path: runs/tree_smoke/events.jsonl
+log_reset: true
+seed: 0
+device: cuda:0
+
+epochs: 1
+batch_states: 4
+grad_accum: 1
+max_len: 512
+max_state_tokens: 256
+
+# Switch this to `path` to smoke the original independent-path encoder.
+encoder_impl: tree
+tree_attention_impl: auto
+
+eval_every: 5
+eval_at_init: true
+save_best: true
+
+lr:
+  embed: 2.0e-6
+  bottom: 4.0e-6
+  middle: 8.0e-6
+  top: 1.5e-5
+  head: 1.0e-4
+warmup_ratio: 0.02
+weight_decay: 0.01
+grad_clip: 1.0
+log_every: 1
+
+loss_weights:
+  brier: 0.1
+  margin: 0.1
+  ordinal: 0.1
+  perm_kl: 0.1
+margin: 0.5
+
+save_final: true

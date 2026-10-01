@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Contract tests
+        run: python -m unittest jev_service.tests.test_contract -v
+      - name: Pinned-release fetch tests
+        run: python -m unittest discover tests -v
+      - name: Candidate v8 tests
+        run: python -m unittest jev_service.test_candidate_v8 -v
+      - name: Syntax check
+        run: python -m compileall -q agentjev jev_service tests fetch_v1_weights.py
+
+  train-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install remaining deps
+        run: pip install "transformers>=4.51.0,<5.0.0" numpy pyyaml tqdm
+      - name: Generate synthetic train data
+        run: python -m agentjev.synth --out data/synth_train.jsonl --n 32 --seed 0
+      - name: Generate synthetic dev data
+        run: python -m agentjev.synth --out data/synth_dev.jsonl --n 8 --seed 1
+      - name: Validate epoch planner and tree collate (no GPU)
+        run: python -m agentjev.train --config configs/tree_smoke.yaml --dry_run
