@@ -3,13 +3,13 @@
 Architecture: Qwen3 backbone (no LM head) + permutation-equivariant
 candidate head.
 
-STATE -> QUESTION -> CANDIDATE hierarchy. Version 1 encodes every
+STATE -> QUESTION -> CANDIDATE hierarchy. PathEncoder encodes every
 (state, question, candidate) triple as an independent causal sequence
 ``[state][question][candidate]`` and reads the hidden state at the
 candidate's last valid token. This is numerically correct but recomputes
-the shared prefix per candidate; a prefix-tree / FlexAttention encoder
-that shares the state+question prefix across candidates of one question
-is the planned replacement.
+the shared prefix per candidate. TreeEncoder merges identical token
+prefixes within each question and uses ancestor-only attention, sharing
+prefix computation during both training and inference.
 
 The backbone encoding step is isolated in :class:`PathEncoder` behind the
 :func:`AgentJevModel.encode_candidates` seam, so the tree encoder can be
@@ -31,6 +31,9 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 from transformers import Qwen3Model
+
+from .encoders import PathEncoder, TreeEncoder
+from .data import DEFAULT_MAX_MASK_BYTES
 
 
 class RMSNorm(nn.Module):
@@ -87,54 +90,6 @@ class ScalarScorer(nn.Module):
         return self.fc2(self.act(self.fc1(self.norm(x)))).squeeze(-1)
 
 
-class PathEncoder(nn.Module):
-    """Independent causal-path encoder (v1).
-
-    Consumes packed per-path token sequences from the collate and returns
-    one vector per candidate, scattered into [Bq, Cmax, H].
-    """
-
-    def __init__(self, backbone: Qwen3Model):
-        super().__init__()
-        self.backbone = backbone
-
-    def forward(self, batch: dict) -> torch.Tensor:
-        out = self.backbone(
-            input_ids=batch["input_ids"],
-            attention_mask=batch["attention_mask"],
-            use_cache=False,
-        )
-        hs = out.last_hidden_state  # [P, L, H]
-        P = hs.size(0)
-        pos = batch["cand_end_pos"]
-        h = hs[torch.arange(P, device=hs.device), pos]  # [P, H]
-        Bq, Cmax = batch["cand_mask"].shape
-        cand_vecs = hs.new_zeros(Bq, Cmax, hs.size(-1))
-        cand_vecs[batch["q_index"], batch["cand_index"]] = h
-        return cand_vecs
-
-
-class TreeEncoder(nn.Module):
-    """Prefix-tree encoder placeholder.
-
-    Will share the tokenized state+question prefix across candidates of
-    one question using tree attention (FlexAttention or an explicit
-    block-diagonal mask), cutting backbone compute by roughly the number
-    of candidates per question. Must return the same [Bq, Cmax, H]
-    candidate-vector tensor as PathEncoder.
-    """
-
-    def __init__(self, backbone: Qwen3Model):
-        super().__init__()
-        self.backbone = backbone
-
-    def forward(self, batch: dict) -> torch.Tensor:
-        raise NotImplementedError(
-            "prefix-tree shared-prefix encoding not implemented yet; "
-            "use encoder_impl='path'"
-        )
-
-
 class AgentJevModel(nn.Module):
     def __init__(
         self,
@@ -144,6 +99,8 @@ class AgentJevModel(nn.Module):
         set_heads: int = 4,
         encoder_impl: str = "path",
         dtype: torch.dtype = torch.float32,
+        tree_max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
+        tree_attention_impl: str = "auto",
     ):
         super().__init__()
         backbone = Qwen3Model.from_pretrained(backbone_path, torch_dtype=dtype)
@@ -153,7 +110,8 @@ class AgentJevModel(nn.Module):
         if encoder_impl == "path":
             self.path_encoder = PathEncoder(backbone)
         elif encoder_impl == "tree":
-            self.path_encoder = TreeEncoder(backbone)
+            self.path_encoder = TreeEncoder(backbone, max_mask_bytes=tree_max_mask_bytes,
+                                            attention_impl=tree_attention_impl)
         else:
             raise ValueError(f"unknown encoder_impl: {encoder_impl}")
 

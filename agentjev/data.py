@@ -36,11 +36,252 @@ from __future__ import annotations
 import json
 import math
 import random
+from collections import defaultdict
+from dataclasses import dataclass
+from functools import wraps
 
 import torch
+from torch.nn.attention.bias import causal_lower_right
 from torch.utils.data import Dataset
 
 from .losses import SUP_CODES
+
+def _map_tensors(value, fn):
+    if torch.is_tensor(value):
+        return fn(value)
+    if isinstance(value, dict):
+        return {k: _map_tensors(v, fn) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_map_tensors(v, fn) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_map_tensors(v, fn) for v in value)
+    return value
+
+
+def batch_to_device(batch: dict, device, non_blocking: bool = False) -> dict:
+    return _map_tensors(batch, lambda t: t.to(device, non_blocking=non_blocking))
+
+
+def pin_batch_memory(batch: dict) -> dict:
+    return _map_tensors(batch, lambda t: t.pin_memory() if t.device.type == "cpu" else t)
+
+
+@dataclass(frozen=True)
+class _SegmentBias:
+    """Keep a device-independent CausalBias out of recursive Tensor.to calls.
+
+    Constructing CausalBias inside forward breaks full-graph torch.compile.
+    It describes sizes, contains no tensor storage, and materializes a mask
+    on the query device only when a fused attention kernel is unavailable.
+    """
+
+    mask: object
+
+
+def build_segments(
+    nodes: list[list[int]],
+    depths: list[list[int]],
+    children: list[list[list[int]]],
+    roots: list[list[int]],
+) -> dict:
+    """Pack maximal single-child chains, grouped by ancestor-prefix length.
+
+    All input arrays are per question; node indices within children/roots
+    are local to that question.  Returned indices address the flattened
+    ``[Bq, Nmax]`` tree tensors.  Segments of different lengths in one group
+    are right-padded: valid queries cannot attend to that padding.
+    """
+    nmax = max(map(len, nodes))
+    grouped = defaultdict(list)
+    pending = [(qi, root, []) for qi, row in enumerate(roots) for root in row]
+    while pending:
+        qi, node, ancestors = pending.pop()
+        start_depth = depths[qi][node]
+        chain = [node]
+        while len(children[qi][node]) == 1:
+            node = children[qi][node][0]
+            chain.append(node)
+        grouped[start_depth].append((qi, ancestors, chain))
+        next_ancestors = ancestors + chain
+        pending.extend((qi, child, next_ancestors) for child in children[qi][node])
+
+    groups = []
+    restore = [0] * (len(nodes) * nmax)
+    output_offset = 0
+    packed_queries = 0
+    attention_pairs = 0
+    for prefix_length, segments in sorted(grouped.items()):
+        query_length = max(len(chain) for _, _, chain in segments)
+        query_rows, key_rows = [], []
+        for row, (qi, ancestors, chain) in enumerate(segments):
+            base = qi * nmax
+            # Any real index is safe here: valid queries never read padding.
+            padding = [base + chain[0]] * (query_length - len(chain))
+            query_rows.append([base + node for node in chain] + padding)
+            key_rows.append([base + node for node in ancestors + chain] + padding)
+            for col, node in enumerate(chain):
+                restore[base + node] = output_offset + row * query_length + col
+        group_queries = len(segments) * query_length
+        groups.append({
+            "query_index": torch.tensor(query_rows, dtype=torch.long),
+            "key_index": torch.tensor(key_rows, dtype=torch.long),
+            "bias": _SegmentBias(causal_lower_right(query_length, prefix_length + query_length))
+            if prefix_length else _SegmentBias(None),
+        })
+        packed_queries += group_queries
+        attention_pairs += len(segments) * (
+            prefix_length * query_length + query_length * (query_length + 1) // 2
+        )
+        output_offset += group_queries
+    return {
+        "groups": groups,
+        "restore_index": torch.tensor(restore, dtype=torch.long),
+        "packed_queries": packed_queries,
+        "attention_pairs": attention_pairs,
+    }
+
+
+DEFAULT_MAX_MASK_BYTES = 64 * 1024 * 1024
+MIN_TREE_PATH_TOKENS = 1024
+
+
+def build_tree_meta(batch: dict, max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
+                    packing: str = "auto") -> dict:
+    """Pack right-padded paths into per-question tries and causal segments.
+
+    DFS metadata is linear in unique nodes; segment indices also contain
+    each segment's ancestor prefix. Fall back when padding increases work,
+    or a fragmented tree exceeds the dense mask budget. Eligible segments
+    do not allocate that dense mask. ``input_tokens`` counts packed tree
+    tokens; the encoder can still choose paths for small batches.
+    """
+    if max_mask_bytes < 0:
+        raise ValueError("max_mask_bytes must be non-negative")
+    if packing not in ("auto", "padded"):
+        raise ValueError("packing must be auto or padded")
+    paths = batch["input_ids"].tolist()
+    masks = batch["attention_mask"].tolist()
+    ends = batch["cand_end_pos"].tolist()
+    questions = batch["q_index"].tolist()
+    Bq = batch["cand_mask"].size(0)
+    if not paths:
+        raise ValueError("TreeEncoder requires at least one non-empty path")
+    if not (len(paths) == len(masks) == len(ends) == len(questions)):
+        raise ValueError("path metadata lengths must match input_ids")
+    nodes = [[] for _ in range(Bq)]
+    depths = [[] for _ in range(Bq)]
+    children = [[] for _ in range(Bq)]
+    roots = [[] for _ in range(Bq)]
+    edges = [{} for _ in range(Bq)]
+    endpoints = []
+    for path, mask, end, qi in zip(paths, masks, ends, questions):
+        if (end < 0 or end >= len(path)
+                or mask != [1] * (end + 1) + [0] * (len(path) - end - 1)):
+            raise ValueError("TreeEncoder expects right-padded paths with "
+                             "cand_end_pos at the last valid token")
+        if not 0 <= qi < Bq:
+            raise ValueError("q_index outside cand_mask")
+        parent = -1
+        for depth, token in enumerate(path[:end + 1]):
+            key = (parent, token)
+            node = edges[qi].get(key)
+            if node is None:
+                node = len(nodes[qi])
+                edges[qi][key] = node
+                nodes[qi].append(token)
+                depths[qi].append(depth)
+                children[qi].append([])
+                (roots[qi] if parent == -1 else children[qi][parent]).append(node)
+            parent = node
+        endpoints.append(parent)
+
+    Nmax = max(map(len, nodes))
+    unique_tokens = sum(map(len, nodes))
+    endpoint_rows = questions
+    # For skewed batches a flat forest reduces BOTH padding and mask area.
+    # Independent DFS root intervals still isolate different questions.
+    layout = "padded"
+    if packing == "auto" and unique_tokens ** 2 < Bq * Nmax ** 2:
+        offsets, offset = [], 0
+        for tokens in nodes:
+            offsets.append(offset)
+            offset += len(tokens)
+        endpoints = [offsets[qi] + node for qi, node in zip(questions, endpoints)]
+        endpoint_rows = [0] * len(questions)
+        nodes = [[token for row in nodes for token in row]]
+        depths = [[depth for row in depths for depth in row]]
+        children = [[[offsets[qi] + child for child in row]
+                     for qi, question_children in enumerate(children) for row in question_children]]
+        roots = [[offsets[qi] + root for qi, row in enumerate(roots) for root in row]]
+        Bq, Nmax = 1, unique_tokens
+        layout = "flat"
+    path_tokens = batch["input_ids"].numel()
+    mask_bytes = Bq * Nmax * Nmax * 4
+    meta = dict(mode="tree", input_tokens=Bq * Nmax,
+                unique_tokens=unique_tokens, path_tokens=path_tokens,
+                mask_bytes=mask_bytes, layout=layout)
+    if max_mask_bytes == 0 or Bq * Nmax >= path_tokens:
+        meta.update(mode="path", input_tokens=path_tokens,
+                    fallback_reason="mask_budget" if max_mask_bytes == 0 else "padding_overhead")
+        return meta
+
+    segments = build_segments(nodes, depths, children, roots)
+    # Highly fragmented trees would need too many small SDPA launches. Keep
+    # them on the dense route, subject to its explicit memory budget.
+    segment_suitable = (len(segments["groups"]) <= 4
+                        and segments["packed_queries"] <= path_tokens)
+    if mask_bytes > max_mask_bytes and not segment_suitable:
+        meta.update(mode="path", input_tokens=path_tokens, fallback_reason="mask_budget")
+        return meta
+
+    ids = torch.zeros(Bq, Nmax, dtype=torch.long)
+    positions = torch.zeros_like(ids)
+    # Padding gets disjoint singleton intervals, so it attends only to itself.
+    entry = torch.arange(Nmax).expand(Bq, Nmax).clone()
+    exit_time = entry.clone()
+    for qi, tokens in enumerate(nodes):
+        n = len(tokens)
+        ids[qi, :n] = torch.tensor(tokens, dtype=torch.long)
+        positions[qi, :n] = torch.tensor(depths[qi], dtype=torch.long)
+        start, stop = [0] * n, [0] * n
+        clock = 0
+        stack = [(node, False) for node in reversed(roots[qi])]
+        while stack:
+            node, closing = stack.pop()
+            if closing:
+                stop[node] = clock - 1
+            else:
+                start[node] = clock
+                clock += 1
+                stack.append((node, True))
+                stack.extend((child, False) for child in reversed(children[qi][node]))
+        entry[qi, :n] = torch.tensor(start, dtype=torch.long)
+        exit_time[qi, :n] = torch.tensor(stop, dtype=torch.long)
+    meta.update(input_ids=ids, position_ids=positions, entry=entry, exit=exit_time,
+                endpoints=torch.tensor(endpoints, dtype=torch.long), segments=segments,
+                endpoint_rows=torch.tensor(endpoint_rows, dtype=torch.long),
+                segment_suitable=segment_suitable)
+    return meta
+
+
+def pack_tree_batch(batch: dict, attention_impl: str = "auto", **kwargs) -> dict:
+    """Return a batch with precomputed tree metadata; source tensors are unchanged."""
+    if attention_impl == "auto" and batch["input_ids"].numel() < MIN_TREE_PATH_TOKENS:
+        tokens = batch["input_ids"].numel()
+        return {**batch, "tree_meta": dict(mode="path", input_tokens=tokens,
+                                           path_tokens=tokens, mask_bytes=0,
+                                           fallback_reason="small_batch")}
+    return {**batch, "tree_meta": build_tree_meta(batch, **kwargs)}
+
+
+def with_tree_collate(collate, **options):
+    """Add CPU tree packing without changing the underlying path collator."""
+    @wraps(collate)
+    def packed(states):
+        return pack_tree_batch(collate(states), **options)
+
+    return packed
+
 
 STATE_PREFIX = "[STATE] "
 QUESTION_PREFIX = "\n[QUESTION] "
@@ -153,6 +394,110 @@ class SourceMixer:
         }
 
 
+class EpochMixer:
+    """Deterministic multi-source sampler with a real epoch boundary.
+
+    One epoch is exactly one shuffled pass over every source: a source's
+    shuffled index order is consumed once and then the next epoch begins.
+    ``batches_per_epoch`` is therefore a fixed integer known at
+    construction, and a config's ``epochs`` is a true pass count rather
+    than a resample count. ``SourceMixer`` cannot provide this -- it draws
+    a source per batch by weight from a cycling order, so the amount of
+    data in a "step budget" depends on the draw.
+
+    A batch still comes from ONE source, and the last batch of a pass may
+    be SHORT (``drop_last=False`` semantics, matching the DataLoader path)
+    so a pass is an exact partition with no duplicated states.
+
+    Weights order the stream; they no longer size it. Source ``i`` always
+    contributes ``repeat_i * ceil(n_i / batch_states)`` batches per epoch,
+    and the deficit scheduler gives it ~``w_i / sum(w)`` of every PREFIX
+    of the epoch. To oversample a small corpus, raise its ``repeat``.
+    """
+
+    RATE = 1_000_000  # integer Bresenham scale: no float drift
+
+    def __init__(self, specs: list[dict], batch_states: int, seed: int = 0):
+        self.names: list[str] = []
+        self.datasets: list[AgentJevDataset] = []
+        self.weights: list[float] = []
+        self.repeats: list[int] = []
+        for spec in specs:
+            ds = AgentJevDataset(spec["path"], where=spec.get("where"))
+            if len(ds) == 0:
+                raise ValueError(f"empty source: {spec}")
+            self.names.append(spec["name"])
+            self.datasets.append(ds)
+            self.weights.append(float(spec.get("weight", 1.0)))
+            self.repeats.append(int(spec.get("repeat", 1)))
+        if any(w < 0 for w in self.weights) or sum(self.weights) <= 0:
+            raise ValueError("source weights must be >= 0 and not all zero")
+        if any(r < 1 for r in self.repeats):
+            raise ValueError("source repeat must be >= 1")
+        self.batch_states = batch_states
+        self.rng = random.Random(seed)
+        self.sizes = [len(ds) for ds in self.datasets]
+        self.batches_per_source = [
+            r * -(-n // batch_states)  # ceil: the final pass batch may be short
+            for n, r in zip(self.sizes, self.repeats)
+        ]
+        self.batches_per_epoch = sum(self.batches_per_source)
+        total_w = sum(self.weights)
+        self._rates = [max(1, int(round(w / total_w * self.RATE)))
+                       for w in self.weights]
+        self.drawn = [0] * len(self.names)  # batches, since start
+        self.epoch = 0                      # whole-epoch passes started
+        self._start_epoch()
+
+    def _passes(self, i: int) -> list[list[dict]]:
+        """``repeat_i`` shuffled passes over source i, each sliced into batches."""
+        ds, n, bs = self.datasets[i], self.sizes[i], self.batch_states
+        out: list[list[dict]] = []
+        for _ in range(self.repeats[i]):
+            order = list(range(n))
+            self.rng.shuffle(order)
+            out.extend([ds[j] for j in order[k:k + bs]]
+                       for k in range(0, n, bs))
+        return out
+
+    def _start_epoch(self) -> None:
+        self._queues = [self._passes(i) for i in range(len(self.names))]
+        self._cursor = [0] * len(self.names)
+        self._deficit = [0] * len(self.names)
+        self.epoch += 1
+
+    def next_batch(self) -> tuple[str, list[dict]]:
+        if all(self._cursor[i] >= len(self._queues[i])
+               for i in range(len(self.names))):
+            self._start_epoch()
+        active = [i for i in range(len(self.names))
+                  if self._cursor[i] < len(self._queues[i])]
+        # Deficit (Bresenham) scheduling over the ACTIVE sources: rates are
+        # re-normalized each slot, so a drained small source cannot starve
+        # before it is drawn and integer arithmetic cannot drift.
+        total = sum(self._rates[i] for i in active)
+        for i in active:
+            self._deficit[i] += self._rates[i]
+        i = max(active, key=lambda j: (self._deficit[j], -j))  # ties: lowest index
+        self._deficit[i] -= total
+        out = self._queues[i][self._cursor[i]]
+        self._cursor[i] += 1
+        self.drawn[i] += 1
+        return self.names[i], out
+
+    def stats(self) -> dict:
+        return {
+            "names": list(self.names),
+            "sizes": list(self.sizes),
+            "weights": list(self.weights),
+            "repeats": list(self.repeats),
+            "batches_per_source": list(self.batches_per_source),
+            "batches_per_epoch": self.batches_per_epoch,
+            "drawn_batches": list(self.drawn),
+            "epoch": self.epoch,
+        }
+
+
 def _validate_gold(q: dict) -> str | None:
     """Return a rejection reason, or None if the question gold is valid."""
     cands = q.get("candidates") or []
@@ -190,7 +535,10 @@ def _validate_gold(q: dict) -> str | None:
     return None
 
 
-def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
+def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256,
+                 encoder_impl: str = "path",
+                 tree_max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
+                 tree_attention_impl: str = "auto"):
     """Collate a list of state dicts into a padded path batch.
 
     Returns a dict of tensors:
@@ -212,13 +560,20 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
         q_index = []
         cand_index = []
         q_rows = []
+        # Question-level metadata for row i of the returned tensors, so a
+        # caller never has to re-derive which question a row belongs to.
+        # Re-derivation is unsound: the acceptance order depends on a
+        # tokenizer-dependent drop ("no token budget for state") that no
+        # gold-level check can predict. None marks the empty-batch
+        # placeholder row.
+        q_meta = []
         sources: dict[str, int] = {}
         dropped: list[dict] = []
         n_trunc_states = 0
         n_trunc_questions = 0
         n_trunc_cands = 0
 
-        for s in states:
+        for si, s in enumerate(states):
             env = s.get("env") or s.get("source", "unknown")
             sid = s.get("id", "?")
             state_text = s["state"]
@@ -228,7 +583,7 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
             if len(s_ids) > max_state_tokens:
                 s_ids = s_ids[:max_state_tokens]  # keep the head (task/goal fields)
                 n_trunc_states += 1
-            for q in s["questions"]:
+            for qi_in_state, q in enumerate(s["questions"]):
                 reason = _validate_gold(q)
                 if reason is not None:
                     dropped.append({"id": sid, "reason": reason})
@@ -269,6 +624,15 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
                     "ordinal": bool(q.get("ordinal", False)),
                 }
                 q_rows.append(row)
+                q_meta.append({
+                    "id": sid,
+                    "workflow": env,
+                    "qtype": q.get("qtype") or ("score" if q.get("ordinal") else "other"),
+                    "ordinal": bool(q.get("ordinal", False)),
+                    "state_index": si,
+                    "question_index": qi_in_state,
+                    "gold": q["gold"],
+                })
                 for ci, c_ids in enumerate(cand_ids):
                     ids = prefix + c_ids
                     input_ids.append(ids)
@@ -288,6 +652,7 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
                 "weight": 0.0,
                 "ordinal": False,
             }]
+            q_meta = [None]  # placeholder: not backed by any real question
 
         # pad paths
         P = len(input_ids)
@@ -342,8 +707,12 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
             "sup_type": sup_type,
             "weight": weight,
             "ordinal": ordinal,
+            # Question metadata parallel to row 0..Bq-1 (None = placeholder).
+            # Non-tensor, so batch_to_device/pin_batch_memory pass it through.
+            "q_meta": q_meta,
             "n_states": len(states),
             "n_paths": P,
+            "n_valid_tokens": sum(map(len, input_ids)),
             "n_questions": Bq,
             "n_trunc_states": n_trunc_states,
             "n_trunc_questions": n_trunc_questions,
@@ -352,12 +721,7 @@ def make_collate(tokenizer, max_len: int = 512, max_state_tokens: int = 256):
             "dropped": dropped,
             "sources": sources,
         }
-
+    if encoder_impl == "tree":
+        return with_tree_collate(collate, attention_impl=tree_attention_impl,
+                                 max_mask_bytes=tree_max_mask_bytes)
     return collate
-
-
-def batch_to_device(batch: dict, device) -> dict:
-    out = {}
-    for k, v in batch.items():
-        out[k] = v.to(device) if torch.is_tensor(v) else v
-    return out

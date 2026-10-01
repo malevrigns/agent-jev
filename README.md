@@ -100,7 +100,7 @@ Three properties are worth the implementation, not the slogan.
   <sub>The state is encoded once. Candidates branch from that prefix.</sub>
 </p>
 
-Different questions do not yet share a state cache. A tree encoder exists as a seam in the training code. The serving path that was measured is the shared-prefix runtime above, not that seam.
+Different questions do not yet share a state cache. Training also supports `encoder_impl: tree`: `TreeEncoder` merges identical token prefixes within each question, uses ancestor-only attention and path-depth positions, and backpropagates through shared nodes. CPU collate precomputes tree topology; automatic routing uses native segmented causal SDPA for wide trees, a bounded dense mask for fragmented trees, and independent paths for small batches. Skewed batches use a compact forest when it saves both padding and mask space. Existing path batches and checkpoints remain compatible, and the default encoder remains `path`. Full-attention Qwen3 with eager or SDPA is required. The timing above measures the serving KV runtime; see the separate [TreeEncoder benchmark report](outputs/tree_benchmark_report.md) for training-encoder timings, numerical error, memory, and reproduction commands.
 
 ---
 
