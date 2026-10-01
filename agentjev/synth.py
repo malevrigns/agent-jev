@@ -59,6 +59,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import random
 
 # --------------------------------------------------------------------------
@@ -585,6 +586,9 @@ def main():
     args = ap.parse_args()
 
     samples = generate(args.n, args.seed)
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         for s in samples:
             f.write(json.dumps(s, ensure_ascii=False) + "\n")
