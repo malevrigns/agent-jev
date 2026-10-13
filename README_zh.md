@@ -379,6 +379,7 @@ python test_game_suite.py
 | `agentjev_hook.py` | PreToolUse 门控 |
 | `typed_decisions/` | 协议、对照数字、逐题预测 |
 | `assets/` | 头图、动图、静态页面 |
+| `docs/index.html` | 交互式使用手册：快速开始、三种问题、请求构造器、读懂概率、Claude Code 钩子，以及状态共享优化的实测回放 |
 | `run_practical_test.py`、`test_coding_scenarios.py`、`test_game_suite.py` | 对着活服务的演示 |
 
 服务侧容易漏掉的说明在 [`jev_service/README.md`](jev_service/README.md)。
