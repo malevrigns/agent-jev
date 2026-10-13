@@ -13,6 +13,8 @@ class DecisionEngine:
         import torch
         from transformers import AutoTokenizer
         from agentjev.model import AgentJevModel
+        from .prefix import MODES
+        if encoder not in MODES: raise ValueError(f'encoder must be one of {MODES}')
         self.torch = torch; self.device = device; self.max_tokens = max_tokens; self.path_batch = path_batch
         self.lock = threading.Lock(); self.encoder=encoder; self.temperatures={}
         if temperatures:
@@ -57,6 +59,13 @@ class DecisionEngine:
         self.model.load_state_dict(bundle['state_dict'], strict=True)
         self.checkpoint_name = Path(checkpoint).parent.name
         del bundle
+        if device.startswith('cuda'):
+            # Every CUDA forward runs under BF16 autocast, which re-casts these
+            # weights on each request. Store that cast once: outputs are
+            # unchanged and the resident backbone shrinks by about a third.
+            # Embeddings and norms stay FP32, as autocast leaves them.
+            for module in self.model.path_encoder.backbone.modules():
+                if isinstance(module, torch.nn.Linear): module.to(torch.bfloat16)
         self.model.eval().to(device)
 
     def info(self):
@@ -76,12 +85,13 @@ class DecisionEngine:
         if self.trained_config:
             return self._evaluate_trained(prepared)
         paths, locations, rows = encode_paths(prepared, self.tokenizer, self.max_tokens)
+        question_states = [si for si, request in enumerate(prepared) for _ in request['questions']]
         torch = self.torch; start = time.perf_counter()
         with self.lock, torch.inference_mode(), torch.autocast(
                 'cuda' if self.device.startswith('cuda') else 'cpu',
                 dtype=torch.bfloat16, enabled=self.device.startswith('cuda')):
             from .prefix import encode
-            vectors,mask,encoding_usage=encode(self,paths,locations,rows,self.encoder)
+            vectors,mask,encoding_usage=encode(self,paths,locations,rows,self.encoder,question_states)
             logits = self.model._score(vectors, mask).float().masked_fill(~mask, float('-inf'))
             if self.temperatures:
                 scaling=torch.tensor([self.temperatures.get(q['type'],1.) for q in rows],device=self.device)
