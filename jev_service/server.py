@@ -39,6 +39,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', default='/root/agentjev/runs/phase4/final.pt')
     parser.add_argument('--model-path', default='/root/agentjev/models/Qwen3-0.6B-Base')
+    parser.add_argument('--host', default='127.0.0.1',
+                        help='Interface to bind (use 0.0.0.0 to accept connections from other machines)')
     parser.add_argument('--port', type=int, default=18765)
     parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--max-tokens', type=int, default=2048)
@@ -49,9 +51,9 @@ def main():
     args = parser.parse_args()
     from .engine import DecisionEngine
     engine = DecisionEngine(args.checkpoint, args.model_path, args.device,
-                            args.max_tokens, encoder=args.encoder, temperatures=args.temperatures)
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(engine,args.page))
-    print(json.dumps({'event': 'ready', 'port': args.port, **engine.info()}), flush=True)
+                            args.max_tokens, temperatures=args.temperatures)
+    server = ThreadingHTTPServer((args.host, args.port), make_handler(engine,args.page))
+    print(json.dumps({'event': 'ready', 'host': args.host, 'port': args.port, **engine.info()}), flush=True)
     server.serve_forever()
 
 
