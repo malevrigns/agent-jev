@@ -207,9 +207,9 @@ python -m jev_service.server \
 
 `model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. Load it at `dtype=torch.bfloat16`: at the pinned revision all 343 tensors are bfloat16, 1,196,881,242 bytes over 598,418,689 parameters. The dtype follows the revision — the repository's default branch now serves a later checkpoint that is float32 and twice the size — which is why the quickstart downloads the pinned revision instead of the default branch.
 
-The process binds **127.0.0.1** only. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
+The process binds **127.0.0.1** only by default — pass `--host 0.0.0.0` to make it reachable from other machines on your network. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/) (or `http://<server-ip>:8149/` once exposed). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
 
-`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048.
+`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--host` defaults to `127.0.0.1`; set to `0.0.0.0` to accept LAN connections (consider a firewall rule).
 
 ---
 

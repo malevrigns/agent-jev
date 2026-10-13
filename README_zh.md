@@ -207,9 +207,9 @@ python -m jev_service.server \
 
 `model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。`AgentJevModel` 先搭好 Qwen3 骨架，再用 `load_state_dict(..., strict=True)` 盖掉。加载时用 `dtype=torch.bfloat16`：在固定的修订版上 343 个张量全部是 bfloat16，1,196,881,242 字节对应 598,418,689 个参数。精度是跟着修订版走的——仓库默认分支现在提供的是另一个 checkpoint，float32、体积翻倍——所以快速开始下载的是固定修订版，而不是默认分支。
 
-进程只绑 **127.0.0.1**。工作台在 [http://127.0.0.1:8149/](http://127.0.0.1:8149/)。`GET /health` 和 `GET /api/info` 返回当前加载的权重。上表对应的是第 600 步选出的 checkpoint。这次公开的张量就是那一轮。
+进程默认只绑 **127.0.0.1**——传 `--host 0.0.0.0` 即可让内网其他机器访问。工作台在 [http://127.0.0.1:8149/](http://127.0.0.1:8149/)（对外暴露后换成 `http://<服务器 IP>:8149/`）。`GET /health` 和 `GET /api/info` 返回当前加载的权重。上表对应的是第 600 步选出的 checkpoint。这次公开的张量就是那一轮。
 
-`--temperatures` 传入在留出校准集上拟合的标量。`--page` 替换工作台页面。`--device` 默认 `cuda:0`。`--max-tokens` 默认 2048。
+`--temperatures` 传入在留出校准集上拟合的标量。`--page` 替换工作台页面。`--device` 默认 `cuda:0`。`--max-tokens` 默认 2048。`--host` 默认 `127.0.0.1`；设为 `0.0.0.0` 接收局域网连接（请按需配置防火墙）。
 
 ---
 
