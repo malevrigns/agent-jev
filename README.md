@@ -379,6 +379,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | `agentjev_hook.py` | PreToolUse gate |
 | `typed_decisions/` | Protocol, comparison, and per-question predictions |
 | `assets/` | Hero, figures, static arena |
+| `docs/index.html` | Interactive usage guide in Chinese: quickstart, the three primitives, a request builder, reading the distributions, the Claude Code hook, and the state-sharing measurements |
 | `run_practical_test.py`, `test_coding_scenarios.py`, `test_game_suite.py` | Live demonstrations |
 
 Serving notes that are easy to miss live in [`jev_service/README.md`](jev_service/README.md).
