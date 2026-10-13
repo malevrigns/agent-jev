@@ -92,7 +92,7 @@ Three properties are worth the implementation, not the slogan.
 
 **The context is 2,048 tokens, and over-length input is refused.** A diff or a trace that does not fit is an error, not a silent crop of the question or a candidate.
 
-**A shared prefix is reused across candidates of the same question.** On one fixed load — 64 choice options plus one boolean, 66 paths, 33,547 path tokens — the unshared median was **609.65 ms**. The shared-prefix path was **298.91 ms**. The largest probability difference was **0.000508**, and the chosen option did not change. Generated tokens were 0 either way. That figure is this load, measured after warmup, not a promise about every prompt.
+**A state is encoded once for all of its questions.** Every candidate is still its own causal path, `[state][question][candidate]`. The server merges the paths of one state into a token trie and encodes it in one forward pass. Each token attends only to itself and its ancestors, at its depth in the original path, so no candidate reads a sibling or another question. On the 400-case test split, five questions over one state and one request per case on an RTX 5060, backbone tokens per case fell from **4,074** to **443** and the median case from **278.01 ms** to **43.89 ms**. Accuracy, soft cross-entropy and Brier did not change. 1,998 of 2,000 chosen options matched the independent paths; the two that moved were ties within 0.0031. The largest probability difference was **0.0053**. Generated tokens were 0 either way. Those figures are this load on this GPU, not a promise about every prompt; [Latency & throughput](#latency--throughput) has the full table.
 
 <p align="center">
   <img src="assets/agentjev_shared_prefix.gif" alt="Shared-prefix caching evaluating many candidates without re-encoding the state for each one." width="100%">
@@ -100,7 +100,7 @@ Three properties are worth the implementation, not the slogan.
   <sub>The state is encoded once. Candidates branch from that prefix.</sub>
 </p>
 
-Different questions do not yet share a state cache. Training also supports `encoder_impl: tree`: `TreeEncoder` merges identical token prefixes within each question, uses ancestor-only attention and path-depth positions, and backpropagates through shared nodes. CPU collate precomputes tree topology; automatic routing uses native segmented causal SDPA for wide trees, a bounded dense mask for fragmented trees, and independent paths for small batches. Skewed batches use a compact forest when it saves both padding and mask space. Existing path batches and checkpoints remain compatible, and the default encoder remains `path`. Full-attention Qwen3 with eager or SDPA is required. The timing above measures the serving KV runtime; see the separate [TreeEncoder benchmark report](outputs/tree_benchmark_report.md) for training-encoder timings, numerical error, memory, and reproduction commands.
+`--encoder question` restores the earlier routing, which reused a KV prefix only inside one question with at least 8 candidates. Training also supports `encoder_impl: tree`: `TreeEncoder` merges identical token prefixes within each question, uses ancestor-only attention and path-depth positions, and backpropagates through shared nodes. CPU collate precomputes tree topology; automatic routing uses native segmented causal SDPA for wide trees, a bounded dense mask for fragmented trees, and independent paths for small batches. Skewed batches use a compact forest when it saves both padding and mask space. Existing path batches and checkpoints remain compatible, and the default encoder remains `path`. Full-attention Qwen3 with eager or SDPA is required. The timing above measures the serving runtime; see the separate [TreeEncoder benchmark report](outputs/tree_benchmark_report.md) for training-encoder timings, numerical error, memory, and reproduction commands.
 
 ---
 
@@ -162,21 +162,25 @@ Full numbers: [`typed_decisions/comparison.json`](typed_decisions/comparison.jso
 
 ## Latency & throughput
 
-The trade-off against Laya is clear: Laya is smaller on single short questions; AgentJev scales under wide candidate sets.
+One RTX 5060 (8 GB), PyTorch 2.9.1+cu128, Transformers 4.57.6, the v1 weights with calibration temperatures. Each test case is one request, timed with tokenization included. Before is `main` at `1c2c1b1`; after is the default `--encoder auto`. Both ran back to back with `python -m jev_service.benchmark_serving`.
 
-| Load | Laya (421M, ModernBERT) | AgentJev (598M, Qwen3) | Difference |
+| Load | Before | After | Change |
 |---|---:|---:|---|
-| **P50 case latency** (5 questions over 1 state, test split) | **41.53 ms** | ~60–70 ms | Laya is ~20 ms faster on short inputs; its encoder has 177M fewer parameters |
-| **P90 case latency** (5 questions over 1 state) | **47.14 ms** | ~85 ms | Both well within interactive response budgets |
-| **Wide candidate load** (64 Choice + 1 Boolean, 33k tokens) | ~500–600 ms *(repeated forward)* | **298.91 ms** *(shared prefix)* | **AgentJev is ~2x faster** via KV prefix reuse |
-| **Context ceiling** | 1,024 tokens | **2,048 tokens** | Laya truncates or refuses beyond 1,024; AgentJev retains twice the state |
+| **P50 case latency** (5 questions over 1 state, test split) | 278.01 ms | **43.89 ms** | 6.3× faster |
+| **P90 case latency** | 378.22 ms | **48.00 ms** | 7.9× faster |
+| **Throughput** (20 cases per request) | 3.68 cases/s | **27.39 cases/s** | 7.4× |
+| **Wide candidate load** (64 Choice + 1 Boolean, 33,547 path tokens) | 550.74 ms | **136.88 ms** | 4.0× faster; backbone tokens 2,551 → 1,521 |
+| **Backbone tokens per case** | 4,074 | **443** | The state is read once instead of once per candidate |
+| **Resident weights** | 2,283 MiB | **1,443 MiB** | Backbone Linear weights stored in BF16; outputs bit-identical |
 
-Laya's ModernBERT backbone has no causal prefix seam: each candidate in a 64-option question requires a complete forward pass over the state text. AgentJev caches the prompt prefix tokens once and scores all candidate branches against that single KV context, dropping redundant backbone token operations from 33,547 to 2,551 (**92.4% reduction**).
+Run-to-run variation on this machine reached about 10%: the unchanged `--encoder path` measured 282.0 ms P50 in the first window and 310.9 ms in the second, and the after column comes from the second.
+
+Laya's published checkpoint measured **41.53 ms** P50 and **47.14 ms** P90 per case on the original benchmark host. It has not been re-timed on this GPU, so the table above is not a head-to-head with Laya. Laya's context ceiling is 1,024 tokens against AgentJev's 2,048. Its ModernBERT backbone has no causal prefix seam: each of the 64 candidates in the wide load needs a full forward pass over the state, while AgentJev reads that state once per request.
 
 <p align="center">
   <img src="assets/agentjev_laya_wide.gif" alt="AgentJev reaches the finish at 298.91 ms. Laya is still about halfway through a 500 to 600 ms band." width="100%">
   <br>
-  <sub>Wide candidate load only. On a short five-question case, Laya's smaller encoder is still the faster one.</sub>
+  <sub>The earlier wide-load comparison on the original host, with per-question KV reuse (298.91 ms). State sharing replaces that route by default.</sub>
 </p>
 
 ---
@@ -209,7 +213,7 @@ python -m jev_service.server \
 
 The process binds **127.0.0.1** only by default — pass `--host 0.0.0.0` to make it reachable from other machines on your network. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/) (or `http://<server-ip>:8149/` once exposed). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
 
-`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--host` defaults to `127.0.0.1`; set to `0.0.0.0` to accept LAN connections (consider a firewall rule).
+`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--encoder` defaults to `auto`, which encodes each state once for all of its questions; `question` keeps the earlier per-question routing.
 
 ---
 
@@ -375,6 +379,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | `agentjev_hook.py` | PreToolUse gate |
 | `typed_decisions/` | Protocol, comparison, and per-question predictions |
 | `assets/` | Hero, figures, static arena |
+| `docs/index.html` | Interactive usage guide in Chinese: quickstart, the three primitives, a request builder, reading the distributions, the Claude Code hook, and the state-sharing measurements |
 | `run_practical_test.py`, `test_coding_scenarios.py`, `test_game_suite.py` | Live demonstrations |
 
 Serving notes that are easy to miss live in [`jev_service/README.md`](jev_service/README.md).

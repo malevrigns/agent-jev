@@ -9,7 +9,8 @@
 - 完整候选文本进入模型，不再只识别 read/edit 之类的工具类别。候选也可以是包含动作参数的 JSON 对象。
 - 问题与选项 ID 只用于对应响应，不进入模型；实际含义必须放在问题和候选描述里。
 - 输入路径上限取决于加载的 checkpoint：不带 `config` 键的 checkpoint（例如 quickstart 的 v1 发版权重）最多 2,048 tokens，超长时明确拒绝，不静默截断任务或候选；带 `config` 键的训练产物 checkpoint 走训练管线 collate，按 checkpoint 内的 `max_len`（常见为 512）静默截断过长的 state/question/candidate，并在响应的 `usage.truncated_inputs` 中报告计数。同一 checkpoint 升级前后的评分可能因此不同，升级训练权重时请核对该配置。训练模式下 `--encoder` 等 CLI 参数由 checkpoint 内配置覆盖。
-- 独立候选路径微批处理；长前缀、多候选时自动复用每个问题的 KV 前缀，候选分支互不读取，最后统一通过已训练的集合评分头。
+- 同一状态下的所有问题和候选合并成一棵 token 前缀树，一次前向编码：每个 token 只关注自己和祖先，位置编码取它在原路径中的深度，所以候选读到的仍是自己那条 `[状态][问题][候选]`，候选分支、不同问题互不读取；最后统一通过已训练的集合评分头。前缀树超过预算（单次前向 8,192 个 token 或 64 MB 掩码）的状态退回按问题处理：长前缀、多候选时复用该问题的 KV 前缀，否则独立路径微批。
+- 在 CUDA 上，骨干的 Linear 权重加载后转存为 BF16。服务的每次前向都在 BF16 autocast 下运行，autocast 本来就会在每个请求里把这些权重转成 BF16，提前转一次输出逐位不变，常驻显存少约三分之一。
 - 网页输入、概率条、原始 API 请求/响应；独立服务可被其他程序调用。
 
 ## 使用
@@ -49,7 +50,7 @@ print(result['results'][0]['answers'])
 - 固定长状态负载（64 个 Choice 候选 + 1 个 Boolean 问题）：原路径中位 609.65 ms，共享前缀自动模式 298.91 ms，约 2.04 倍。骨干输入 token 从 33,547 降到 2,551；概率最大绝对差异 0.000508，最终选项不变。三次计时、预热后测量；仅代表该合成负载，不是普遍速度保证或决策能力提升。
 - HTTP 问题隔离 BF16 数值差异约 0.00282，属于本次测量结果，不声称逐位一致。
 
-当前服务共享的是同一问题的候选前缀；不同问题之间尚未共享状态缓存。训练代码的 `TreeEncoder` 已实现可反向传播的前缀树编码，通过 `encoder_impl: tree` 启用；它会在分段因果 SDPA、稠密祖先掩码和独立路径之间选择，并提前在 CPU 构建树。上面的服务端 KV 复用测速不代表训练树编码器的速度，独立结果见 [TreeEncoder benchmark 报告](../outputs/tree_benchmark_report.md)。
+默认 `--encoder auto` 让同一状态的所有问题共享一次状态编码；`--encoder question` 保留此前只在问题内共享的行为，`shared`／`path` 用于对照。各模式在测试集上的时延、显存与逐题概率差异由 `python -m jev_service.benchmark_serving` 生成。上面这组 609.65 → 298.91 ms 的数字是此前在原服务器上测的按问题 KV 复用。训练代码的 `TreeEncoder` 已实现可反向传播的前缀树编码，通过 `encoder_impl: tree` 启用；它会在分段因果 SDPA、稠密祖先掩码和独立路径之间选择，并提前在 CPU 构建树。上面的服务端 KV 复用测速不代表训练树编码器的速度，独立结果见 [TreeEncoder benchmark 报告](../outputs/tree_benchmark_report.md)。
 
 ## 启动与恢复
 

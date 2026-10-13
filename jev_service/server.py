@@ -44,6 +44,8 @@ def main():
     parser.add_argument('--port', type=int, default=18765)
     parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--max-tokens', type=int, default=2048)
+    parser.add_argument('--encoder', default='auto', choices=('auto', 'question', 'shared', 'path'),
+                        help='auto shares each state across its questions; question shares only within a question')
     parser.add_argument('--temperatures', help='Optional primitive temperatures fitted on independent calibration cases')
     parser.add_argument('--page', help='Optional task-specific workbench HTML')
     args = parser.parse_args()
