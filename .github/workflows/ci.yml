@@ -37,6 +37,8 @@ jobs:
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Install remaining deps
         run: pip install "transformers>=4.51.0,<5.0.0" numpy pyyaml tqdm
+      - name: Shared-state trie parity (tiny random Qwen3, CPU)
+        run: python -m unittest jev_service.tests.test_prefix -v
       - name: Generate synthetic train data
         run: python -m agentjev.synth --out data/synth_train.jsonl --n 32 --seed 0
       - name: Generate synthetic dev data

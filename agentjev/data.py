@@ -145,95 +145,80 @@ DEFAULT_MAX_MASK_BYTES = 64 * 1024 * 1024
 MIN_TREE_PATH_TOKENS = 1024
 
 
-def build_tree_meta(batch: dict, max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
-                    packing: str = "auto") -> dict:
-    """Pack right-padded paths into per-question tries and causal segments.
+def _common_prefix_length(a: list[int], b: list[int]) -> int:
+    # Binary search over C-level slice comparisons, not a per-token loop.
+    lo, hi = 0, min(len(a), len(b))
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if a[:mid] == b[:mid]:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
 
-    DFS metadata is linear in unique nodes; segment indices also contain
-    each segment's ancestor prefix. Fall back when padding increases work,
-    or a fragmented tree exceeds the dense mask budget. Eligible segments
-    do not allocate that dense mask. ``input_tokens`` counts packed tree
-    tokens; the encoder can still choose paths for small batches.
+
+def build_tries(paths: list[list[int]], groups: list[int], n_groups: int) -> tuple:
+    """Merge token paths into one trie per group.
+
+    Returns per-group ``nodes`` (token ids), ``depths``, ``children`` and
+    ``roots`` with group-local node indices, plus every path's endpoint
+    node.  Nodes are numbered in first-insertion order.  The prefix a path
+    shares with the previous path of its group is skipped without per-token
+    lookups; the trie is identical to inserting every token.
     """
-    if max_mask_bytes < 0:
-        raise ValueError("max_mask_bytes must be non-negative")
-    if packing not in ("auto", "padded"):
-        raise ValueError("packing must be auto or padded")
-    paths = batch["input_ids"].tolist()
-    masks = batch["attention_mask"].tolist()
-    ends = batch["cand_end_pos"].tolist()
-    questions = batch["q_index"].tolist()
-    Bq = batch["cand_mask"].size(0)
-    if not paths:
-        raise ValueError("TreeEncoder requires at least one non-empty path")
-    if not (len(paths) == len(masks) == len(ends) == len(questions)):
-        raise ValueError("path metadata lengths must match input_ids")
-    nodes = [[] for _ in range(Bq)]
-    depths = [[] for _ in range(Bq)]
-    children = [[] for _ in range(Bq)]
-    roots = [[] for _ in range(Bq)]
-    edges = [{} for _ in range(Bq)]
+    nodes = [[] for _ in range(n_groups)]
+    depths = [[] for _ in range(n_groups)]
+    children = [[] for _ in range(n_groups)]
+    roots = [[] for _ in range(n_groups)]
+    edges = [{} for _ in range(n_groups)]
+    last = [None] * n_groups  # (path, its node at every depth)
     endpoints = []
-    for path, mask, end, qi in zip(paths, masks, ends, questions):
-        if (end < 0 or end >= len(path)
-                or mask != [1] * (end + 1) + [0] * (len(path) - end - 1)):
-            raise ValueError("TreeEncoder expects right-padded paths with "
-                             "cand_end_pos at the last valid token")
-        if not 0 <= qi < Bq:
-            raise ValueError("q_index outside cand_mask")
-        parent = -1
-        for depth, token in enumerate(path[:end + 1]):
-            key = (parent, token)
-            node = edges[qi].get(key)
+    for path, gi in zip(paths, groups):
+        if not path:
+            raise ValueError("trie paths must be non-empty")
+        shared, chain = 0, []
+        if last[gi] is not None:
+            previous, previous_chain = last[gi]
+            shared = _common_prefix_length(previous, path)
+            chain = previous_chain[:shared]
+        parent = chain[-1] if chain else -1
+        for depth in range(shared, len(path)):
+            key = (parent, path[depth])
+            node = edges[gi].get(key)
             if node is None:
-                node = len(nodes[qi])
-                edges[qi][key] = node
-                nodes[qi].append(token)
-                depths[qi].append(depth)
-                children[qi].append([])
-                (roots[qi] if parent == -1 else children[qi][parent]).append(node)
+                node = len(nodes[gi])
+                edges[gi][key] = node
+                nodes[gi].append(path[depth])
+                depths[gi].append(depth)
+                children[gi].append([])
+                (roots[gi] if parent == -1 else children[gi][parent]).append(node)
+            chain.append(node)
             parent = node
+        last[gi] = (path, chain)
         endpoints.append(parent)
+    return nodes, depths, children, roots, endpoints
 
-    Nmax = max(map(len, nodes))
-    unique_tokens = sum(map(len, nodes))
-    endpoint_rows = questions
-    # For skewed batches a flat forest reduces BOTH padding and mask area.
-    # Independent DFS root intervals still isolate different questions.
-    layout = "padded"
-    if packing == "auto" and unique_tokens ** 2 < Bq * Nmax ** 2:
-        offsets, offset = [], 0
-        for tokens in nodes:
-            offsets.append(offset)
-            offset += len(tokens)
-        endpoints = [offsets[qi] + node for qi, node in zip(questions, endpoints)]
-        endpoint_rows = [0] * len(questions)
-        nodes = [[token for row in nodes for token in row]]
-        depths = [[depth for row in depths for depth in row]]
-        children = [[[offsets[qi] + child for child in row]
-                     for qi, question_children in enumerate(children) for row in question_children]]
-        roots = [[offsets[qi] + root for qi, row in enumerate(roots) for root in row]]
-        Bq, Nmax = 1, unique_tokens
-        layout = "flat"
-    path_tokens = batch["input_ids"].numel()
-    mask_bytes = Bq * Nmax * Nmax * 4
-    meta = dict(mode="tree", input_tokens=Bq * Nmax,
-                unique_tokens=unique_tokens, path_tokens=path_tokens,
-                mask_bytes=mask_bytes, layout=layout)
-    if max_mask_bytes == 0 or Bq * Nmax >= path_tokens:
-        meta.update(mode="path", input_tokens=path_tokens,
-                    fallback_reason="mask_budget" if max_mask_bytes == 0 else "padding_overhead")
-        return meta
 
-    segments = build_segments(nodes, depths, children, roots)
-    # Highly fragmented trees would need too many small SDPA launches. Keep
-    # them on the dense route, subject to its explicit memory budget.
-    segment_suitable = (len(segments["groups"]) <= 4
-                        and segments["packed_queries"] <= path_tokens)
-    if mask_bytes > max_mask_bytes and not segment_suitable:
-        meta.update(mode="path", input_tokens=path_tokens, fallback_reason="mask_budget")
-        return meta
+def _flatten_tries(nodes, depths, children, roots, endpoints, endpoint_rows):
+    """Concatenate per-group tries into one forest row.
 
+    Independent DFS root intervals still isolate the groups.
+    """
+    offsets, offset = [], 0
+    for tokens in nodes:
+        offsets.append(offset)
+        offset += len(tokens)
+    endpoints = [offsets[gi] + node for gi, node in zip(endpoint_rows, endpoints)]
+    flat_children = [[[offsets[gi] + child for child in row]
+                      for gi, group_children in enumerate(children) for row in group_children]]
+    flat_roots = [[offsets[gi] + root for gi, row in enumerate(roots) for root in row]]
+    return ([[token for row in nodes for token in row]],
+            [[depth for row in depths for depth in row]],
+            flat_children, flat_roots, endpoints, [0] * len(endpoints))
+
+
+def _dense_tensors(nodes, depths, children, roots, Bq: int, Nmax: int) -> dict:
+    """Token ids, path-depth positions and DFS entry/exit times per row."""
     ids = torch.zeros(Bq, Nmax, dtype=torch.long)
     positions = torch.zeros_like(ids)
     # Padding gets disjoint singleton intervals, so it attends only to itself.
@@ -257,7 +242,99 @@ def build_tree_meta(batch: dict, max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
                 stack.extend((child, False) for child in reversed(children[qi][node]))
         entry[qi, :n] = torch.tensor(start, dtype=torch.long)
         exit_time[qi, :n] = torch.tensor(stop, dtype=torch.long)
-    meta.update(input_ids=ids, position_ids=positions, entry=entry, exit=exit_time,
+    return dict(input_ids=ids, position_ids=positions, entry=entry, exit=exit_time)
+
+
+def pack_dense_tries(nodes, depths, children, roots, endpoints, endpoint_rows,
+                     packing: str = "auto") -> dict:
+    """Lay out tries from :func:`build_tries` for one dense-attention forward.
+
+    Each group gets its own row, or all groups share one flat forest row
+    when that needs less mask area.  Returns the tensors
+    :func:`agentjev.encoders.encode_dense` reads and the row/column of
+    every path's endpoint.
+    """
+    if packing not in ("auto", "padded"):
+        raise ValueError("packing must be auto or padded")
+    Bq, Nmax = len(nodes), max(map(len, nodes))
+    unique_tokens = sum(map(len, nodes))
+    layout = "padded"
+    if packing == "auto" and unique_tokens ** 2 < Bq * Nmax ** 2:
+        nodes, depths, children, roots, endpoints, endpoint_rows = _flatten_tries(
+            nodes, depths, children, roots, endpoints, endpoint_rows)
+        Bq, Nmax = 1, unique_tokens
+        layout = "flat"
+    return dict(_dense_tensors(nodes, depths, children, roots, Bq, Nmax),
+                endpoints=torch.tensor(endpoints, dtype=torch.long),
+                endpoint_rows=torch.tensor(endpoint_rows, dtype=torch.long),
+                layout=layout, unique_tokens=unique_tokens, input_tokens=Bq * Nmax,
+                mask_bytes=Bq * Nmax * Nmax * 4)
+
+
+def build_tree_meta(batch: dict, max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
+                    packing: str = "auto") -> dict:
+    """Pack right-padded paths into per-question tries and causal segments.
+
+    DFS metadata is linear in unique nodes; segment indices also contain
+    each segment's ancestor prefix. Fall back when padding increases work,
+    or a fragmented tree exceeds the dense mask budget. Eligible segments
+    do not allocate that dense mask. ``input_tokens`` counts packed tree
+    tokens; the encoder can still choose paths for small batches.
+    """
+    if max_mask_bytes < 0:
+        raise ValueError("max_mask_bytes must be non-negative")
+    if packing not in ("auto", "padded"):
+        raise ValueError("packing must be auto or padded")
+    paths = batch["input_ids"].tolist()
+    masks = batch["attention_mask"].tolist()
+    ends = batch["cand_end_pos"].tolist()
+    questions = batch["q_index"].tolist()
+    Bq = batch["cand_mask"].size(0)
+    if not paths:
+        raise ValueError("TreeEncoder requires at least one non-empty path")
+    if not (len(paths) == len(masks) == len(ends) == len(questions)):
+        raise ValueError("path metadata lengths must match input_ids")
+    for path, mask, end, qi in zip(paths, masks, ends, questions):
+        if (end < 0 or end >= len(path)
+                or mask != [1] * (end + 1) + [0] * (len(path) - end - 1)):
+            raise ValueError("TreeEncoder expects right-padded paths with "
+                             "cand_end_pos at the last valid token")
+        if not 0 <= qi < Bq:
+            raise ValueError("q_index outside cand_mask")
+    nodes, depths, children, roots, endpoints = build_tries(
+        [path[:end + 1] for path, end in zip(paths, ends)], questions, Bq)
+
+    Nmax = max(map(len, nodes))
+    unique_tokens = sum(map(len, nodes))
+    endpoint_rows = questions
+    # For skewed batches a flat forest reduces BOTH padding and mask area.
+    # Independent DFS root intervals still isolate different questions.
+    layout = "padded"
+    if packing == "auto" and unique_tokens ** 2 < Bq * Nmax ** 2:
+        nodes, depths, children, roots, endpoints, endpoint_rows = _flatten_tries(
+            nodes, depths, children, roots, endpoints, endpoint_rows)
+        Bq, Nmax = 1, unique_tokens
+        layout = "flat"
+    path_tokens = batch["input_ids"].numel()
+    mask_bytes = Bq * Nmax * Nmax * 4
+    meta = dict(mode="tree", input_tokens=Bq * Nmax,
+                unique_tokens=unique_tokens, path_tokens=path_tokens,
+                mask_bytes=mask_bytes, layout=layout)
+    if max_mask_bytes == 0 or Bq * Nmax >= path_tokens:
+        meta.update(mode="path", input_tokens=path_tokens,
+                    fallback_reason="mask_budget" if max_mask_bytes == 0 else "padding_overhead")
+        return meta
+
+    segments = build_segments(nodes, depths, children, roots)
+    # Highly fragmented trees would need too many small SDPA launches. Keep
+    # them on the dense route, subject to its explicit memory budget.
+    segment_suitable = (len(segments["groups"]) <= 4
+                        and segments["packed_queries"] <= path_tokens)
+    if mask_bytes > max_mask_bytes and not segment_suitable:
+        meta.update(mode="path", input_tokens=path_tokens, fallback_reason="mask_budget")
+        return meta
+
+    meta.update(_dense_tensors(nodes, depths, children, roots, Bq, Nmax),
                 endpoints=torch.tensor(endpoints, dtype=torch.long), segments=segments,
                 endpoint_rows=torch.tensor(endpoint_rows, dtype=torch.long),
                 segment_suitable=segment_suitable)

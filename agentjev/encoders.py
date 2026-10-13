@@ -135,22 +135,32 @@ class TreeEncoder(PathEncoder):
         if backend == "segmented":
             hs = encode_segmented(self.backbone, meta)
         else:
-            entry, stop = meta["entry"], meta["exit"]
-            # Ancestor test uses O(N) metadata; quadratic work stays on device.
-            allowed = ((entry[:, None, :] <= entry[:, :, None])
-                       & (entry[:, :, None] <= stop[:, None, :]))
-            dtype = self.backbone.get_input_embeddings().weight.dtype
-            attention = torch.zeros_like(allowed, dtype=dtype).masked_fill_(
-                ~allowed, torch.finfo(dtype).min).unsqueeze(1)
-            hs = self.backbone(
-                input_ids=meta["input_ids"], attention_mask=attention,
-                position_ids=meta["position_ids"], use_cache=False,
-            ).last_hidden_state
+            hs = encode_dense(self.backbone, meta)
         h = hs[meta["endpoint_rows"], meta["endpoints"]]
         Bq, Cmax = batch["cand_mask"].shape
         cand_vecs = hs.new_zeros(Bq, Cmax, hs.size(-1))
         cand_vecs[batch["q_index"], batch["cand_index"]] = h
         return cand_vecs
+
+
+def encode_dense(backbone, meta: dict) -> torch.Tensor:
+    """Encode packed tries with a dense ancestor-only attention mask.
+
+    ``meta`` supplies input_ids, position_ids (path depth) and DFS
+    entry/exit times per row, as built by ``build_tree_meta`` or
+    ``pack_dense_tries``.  A node attends to itself and its ancestors.
+    """
+    entry, stop = meta["entry"], meta["exit"]
+    # Ancestor test uses O(N) metadata; quadratic work stays on device.
+    allowed = ((entry[:, None, :] <= entry[:, :, None])
+               & (entry[:, :, None] <= stop[:, None, :]))
+    dtype = backbone.get_input_embeddings().weight.dtype
+    attention = torch.zeros_like(allowed, dtype=dtype).masked_fill_(
+        ~allowed, torch.finfo(dtype).min).unsqueeze(1)
+    return backbone(
+        input_ids=meta["input_ids"], attention_mask=attention,
+        position_ids=meta["position_ids"], use_cache=False,
+    ).last_hidden_state
 
 
 def _segment_layer(layer, hidden_states, position_embeddings, segments):
