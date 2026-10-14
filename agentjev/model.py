@@ -30,7 +30,8 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
-from transformers import Qwen3Model
+from transformers import Qwen3Config, Qwen3Model
+from transformers.modeling_utils import no_init_weights
 
 from .encoders import PathEncoder, TreeEncoder
 from .data import DEFAULT_MAX_MASK_BYTES
@@ -101,9 +102,18 @@ class AgentJevModel(nn.Module):
         dtype: torch.dtype = torch.float32,
         tree_max_mask_bytes: int = DEFAULT_MAX_MASK_BYTES,
         tree_attention_impl: str = "auto",
+        pretrained: bool = True,
     ):
         super().__init__()
-        backbone = Qwen3Model.from_pretrained(backbone_path, torch_dtype=dtype)
+        if pretrained:
+            backbone = Qwen3Model.from_pretrained(backbone_path, torch_dtype=dtype)
+        else:
+            # For callers that load a full AgentJev state dict next: build the
+            # skeleton from config.json alone, so no base weights are read and
+            # none are randomly initialized only to be overwritten.
+            config = Qwen3Config.from_pretrained(backbone_path)
+            with no_init_weights():
+                backbone = Qwen3Model._from_config(config, torch_dtype=dtype)
         hidden = backbone.config.hidden_size
         self.hidden_size = hidden
 
