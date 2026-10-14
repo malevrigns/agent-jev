@@ -11,6 +11,7 @@
 - 输入路径上限取决于加载的 checkpoint：不带 `config` 键的 checkpoint（例如 quickstart 的 v1 发版权重）最多 2,048 tokens，超长时明确拒绝，不静默截断任务或候选；带 `config` 键的训练产物 checkpoint 走训练管线 collate，按 checkpoint 内的 `max_len`（常见为 512）静默截断过长的 state/question/candidate，并在响应的 `usage.truncated_inputs` 中报告计数。同一 checkpoint 升级前后的评分可能因此不同，升级训练权重时请核对该配置。训练模式下 `--encoder` 等 CLI 参数由 checkpoint 内配置覆盖。
 - 同一状态下的所有问题和候选合并成一棵 token 前缀树，一次前向编码：每个 token 只关注自己和祖先，位置编码取它在原路径中的深度，所以候选读到的仍是自己那条 `[状态][问题][候选]`，候选分支、不同问题互不读取；最后统一通过已训练的集合评分头。前缀树超过预算（单次前向 8,192 个 token 或 64 MB 掩码）的状态退回按问题处理：长前缀、多候选时复用该问题的 KV 前缀，否则独立路径微批。
 - 在 CUDA 上，骨干的 Linear 权重加载后转存为 BF16。服务的每次前向都在 BF16 autocast 下运行，autocast 本来就会在每个请求里把这些权重转成 BF16，提前转一次输出逐位不变，常驻显存少约三分之一。
+- `--checkpoint` 可以直接指向发版的 `model.safetensors`，`--model-path` 指向带 `config.json` 和分词器的目录（`fetch_v1_weights.py` 下载的 `models/agentjev-v1`）。服务按配置搭 Qwen3 骨架，不读取、不初始化底座权重；`/health` 报告的 `checkpoint_sha256` 就是 Hugging Face 上列出的文件哈希。启动时先跑一次预热请求再报告就绪。
 - 网页输入、概率条、原始 API 请求/响应；独立服务可被其他程序调用。
 
 ## 使用

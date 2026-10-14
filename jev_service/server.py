@@ -2,7 +2,38 @@
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import sys
 from pathlib import Path
+import time
+
+def opt_out_of_power_throttling():
+    """Keep Windows from slowing this process down whenever its window is not in front.
+
+    Windows 11 applies EcoQoS to background processes; for this service that
+    doubled request latency (about 35 ms to 75 ms on one RTX 5060 machine).
+    Priority is left unchanged. Returns whether the opt-out took effect.
+    """
+    if sys.platform != 'win32':
+        return False
+    import ctypes
+    from ctypes import wintypes
+
+    class PowerThrottlingState(ctypes.Structure):
+        _fields_ = [('Version', wintypes.ULONG), ('ControlMask', wintypes.ULONG), ('StateMask', wintypes.ULONG)]
+
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.SetProcessInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    # ProcessPowerThrottling = 4; control EXECUTION_SPEED (0x1) with state 0 = never throttle.
+    state = PowerThrottlingState(1, 0x1, 0)
+    return bool(kernel32.SetProcessInformation(kernel32.GetCurrentProcess(), 4,
+                                               ctypes.byref(state), ctypes.sizeof(state)))
+
+
+WARMUP = {'state': 'Tests run: 3, Failures: 0', 'questions': [
+    {'type': 'boolean', 'question': 'Have all tests passed?'},
+    {'type': 'choice', 'question': 'What next?', 'options': ['Commit.', 'Read the failure.']},
+    {'type': 'score', 'question': 'How risky?', 'levels': ['Low.', 'High.']}]}
 
 
 def make_handler(engine, page=None):
@@ -39,7 +70,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', default='/root/agentjev/runs/phase4/final.pt')
     parser.add_argument('--model-path', default='/root/agentjev/models/Qwen3-0.6B-Base')
-    parser.add_argument('--port', type=int, default=18765)
+    parser.add_argument('--port', type=int, default=8149)
     parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--max-tokens', type=int, default=2048)
     parser.add_argument('--encoder', default='auto', choices=('auto', 'question', 'shared', 'path'),
@@ -47,11 +78,18 @@ def main():
     parser.add_argument('--temperatures', help='Optional primitive temperatures fitted on independent calibration cases')
     parser.add_argument('--page', help='Optional task-specific workbench HTML')
     args = parser.parse_args()
+    unthrottled = opt_out_of_power_throttling()
     from .engine import DecisionEngine
     engine = DecisionEngine(args.checkpoint, args.model_path, args.device,
                             args.max_tokens, encoder=args.encoder, temperatures=args.temperatures)
+    # The first forward pays for CUDA context and kernel setup (about a second);
+    # spend it here so the first real request does not.
+    warmup = time.perf_counter()
+    engine.evaluate(WARMUP)
+    warmup_ms = round((time.perf_counter() - warmup) * 1000, 1)
     server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(engine,args.page))
-    print(json.dumps({'event': 'ready', 'port': args.port, **engine.info()}), flush=True)
+    print(json.dumps({'event': 'ready', 'port': args.port, 'warmup_ms': warmup_ms,
+                      'power_throttling_disabled': unthrottled, **engine.info()}), flush=True)
     server.serve_forever()
 
 
