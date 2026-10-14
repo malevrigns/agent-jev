@@ -1,0 +1,518 @@
+{
+ "checkpoint": "coding_gates/runs/gates_v2/selected.safetensors",
+ "sha256": "d8e39f94dc949f459b5b5ce254311a2ef99c010b0036b847dc670bebf3a8f2d8",
+ "splits": {
+  "test": {
+   "overall": {
+    "n": 1598,
+    "accuracy": 0.9962453066332916,
+    "soft_cross_entropy": 0.016555927007549456,
+    "brier_sum": 0.00615656576420472,
+    "gold_mass_at_selected_option": 0.9962453066332916,
+    "ece_10_bins_vs_gold_argmax": 0.0032614835063566935,
+    "score_expectation_mae": 0.012010730419871867
+   },
+   "gate": {
+    "n": 551,
+    "negatives": 348,
+    "false_pass": 0,
+    "false_pass_rate": 0.0,
+    "false_block": 0
+   },
+   "by_type": {
+    "boolean": {
+     "n": 551,
+     "accuracy": 1.0,
+     "soft_cross_entropy": 4.503066091981081e-05,
+     "brier_sum": 1.6985384362839441e-07,
+     "gold_mass_at_selected_option": 1.0,
+     "ece_10_bins_vs_gold_argmax": 4.49880930559754e-05,
+     "score_expectation_mae": null
+    },
+    "choice": {
+     "n": 551,
+     "accuracy": 1.0,
+     "soft_cross_entropy": 1.0890516556253334e-05,
+     "brier_sum": 8.150679777183368e-09,
+     "gold_mass_at_selected_option": 1.0,
+     "ece_10_bins_vs_gold_argmax": 1.0888394772923249e-05,
+     "score_expectation_mae": null
+    },
+    "score": {
+     "n": 496,
+     "accuracy": 0.9879032258064516,
+     "soft_cross_entropy": 0.053277336268699044,
+     "brier_sum": 0.01983486695707005,
+     "gold_mass_at_selected_option": 0.9879032258064516,
+     "ece_10_bins_vs_gold_argmax": 0.010569835862805825,
+     "score_expectation_mae": 0.012010730419871867
+    }
+   },
+   "by_runner": {
+    "jest": {
+     "n": 199,
+     "accuracy": 1.0
+    },
+    "mocha": {
+     "n": 194,
+     "accuracy": 1.0
+    },
+    "pytest": {
+     "n": 197,
+     "accuracy": 0.9949238578680203
+    },
+    "summary": {
+     "n": 813,
+     "accuracy": 0.993849938499385
+    },
+    "unittest": {
+     "n": 195,
+     "accuracy": 1.0
+    }
+   },
+   "by_outcome": {
+    "broken": {
+     "n": 68,
+     "accuracy": 1.0
+    },
+    "error": {
+     "n": 294,
+     "accuracy": 0.9829931972789115
+    },
+    "fail": {
+     "n": 585,
+     "accuracy": 0.9982905982905983
+    },
+    "no_tests": {
+     "n": 42,
+     "accuracy": 1.0
+    },
+    "pass": {
+     "n": 609,
+     "accuracy": 1.0
+    }
+   },
+   "by_exit_code_shown": {
+    "False": {
+     "n": 383,
+     "accuracy": 0.9973890339425587
+    },
+    "True": {
+     "n": 402,
+     "accuracy": 1.0
+    }
+   },
+   "paraphrase": {
+    "green": {
+     "accuracy": 1.0,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 0
+    },
+    "zh": {
+     "accuracy": 0.9963702359346642,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 2
+    },
+    "done": {
+     "accuracy": 1.0,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 0
+    },
+    "bare": {
+     "accuracy": 0.9981851179673321,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 1
+    }
+   },
+   "final_paraphrase": {
+    "shows_pass": {
+     "accuracy": 0.9546279491833031,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 25,
+     "false_pass_rate": 0.07183908045977011,
+     "false_block": 0
+    },
+    "zh_task_done": {
+     "accuracy": 1.0,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 0
+    },
+    "red": {
+     "accuracy": 0.9981851179673321,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 1
+    },
+    "zh_bare": {
+     "accuracy": 0.9963702359346642,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 2
+    },
+    "terse": {
+     "accuracy": 0.8312159709618875,
+     "n": 551,
+     "negatives": 348,
+     "false_pass": 93,
+     "false_pass_rate": 0.2672413793103448,
+     "false_block": 0
+    }
+   }
+  },
+  "ood": {
+   "overall": {
+    "n": 847,
+    "accuracy": 0.9031877213695395,
+    "soft_cross_entropy": 0.6004593247323984,
+    "brier_sum": 0.16982334405710173,
+    "gold_mass_at_selected_option": 0.9031877213695395,
+    "ece_10_bins_vs_gold_argmax": 0.08053122374637069,
+    "score_expectation_mae": 0.17034628323064416
+   },
+   "gate": {
+    "n": 300,
+    "negatives": 198,
+    "false_pass": 7,
+    "false_pass_rate": 0.03535353535353535,
+    "false_block": 8
+   },
+   "by_type": {
+    "boolean": {
+     "n": 300,
+     "accuracy": 0.95,
+     "soft_cross_entropy": 0.3362622620556914,
+     "brier_sum": 0.09979114698068484,
+     "gold_mass_at_selected_option": 0.95,
+     "ece_10_bins_vs_gold_argmax": 0.05083513836065932,
+     "score_expectation_mae": null
+    },
+    "choice": {
+     "n": 300,
+     "accuracy": 0.89,
+     "soft_cross_entropy": 0.742000644393264,
+     "brier_sum": 0.18295395756776126,
+     "gold_mass_at_selected_option": 0.89,
+     "ece_10_bins_vs_gold_argmax": 0.09172885894775384,
+     "score_expectation_mae": null
+    },
+    "score": {
+     "n": 247,
+     "accuracy": 0.8623481781376519,
+     "soft_cross_entropy": 0.749433911391315,
+     "brier_sum": 0.23893457915721195,
+     "gold_mass_at_selected_option": 0.8623481781376519,
+     "ece_10_bins_vs_gold_argmax": 0.1105230773991419,
+     "score_expectation_mae": 0.17034628323064416
+    }
+   },
+   "by_runner": {
+    "node": {
+     "n": 423,
+     "accuracy": 0.8486997635933806
+    },
+    "vitest": {
+     "n": 424,
+     "accuracy": 0.9575471698113207
+    }
+   },
+   "by_outcome": {
+    "broken": {
+     "n": 80,
+     "accuracy": 0.775
+    },
+    "error": {
+     "n": 129,
+     "accuracy": 0.8837209302325582
+    },
+    "fail": {
+     "n": 306,
+     "accuracy": 0.934640522875817
+    },
+    "no_tests": {
+     "n": 26,
+     "accuracy": 0.6923076923076923
+    },
+    "pass": {
+     "n": 306,
+     "accuracy": 0.9313725490196079
+    }
+   },
+   "by_exit_code_shown": {
+    "False": {
+     "n": 383,
+     "accuracy": 0.8537859007832899
+    },
+    "True": {
+     "n": 464,
+     "accuracy": 0.9439655172413793
+    }
+   },
+   "paraphrase": {
+    "green": {
+     "accuracy": 0.92,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 21,
+     "false_pass_rate": 0.10606060606060606,
+     "false_block": 3
+    },
+    "zh": {
+     "accuracy": 0.9433333333333334,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 9,
+     "false_pass_rate": 0.045454545454545456,
+     "false_block": 8
+    },
+    "done": {
+     "accuracy": 0.92,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 19,
+     "false_pass_rate": 0.09595959595959595,
+     "false_block": 5
+    },
+    "bare": {
+     "accuracy": 0.8966666666666666,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 6,
+     "false_pass_rate": 0.030303030303030304,
+     "false_block": 25
+    }
+   },
+   "final_paraphrase": {
+    "shows_pass": {
+     "accuracy": 0.93,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 21,
+     "false_pass_rate": 0.10606060606060606,
+     "false_block": 0
+    },
+    "zh_task_done": {
+     "accuracy": 0.95,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 5,
+     "false_pass_rate": 0.025252525252525252,
+     "false_block": 10
+    },
+    "red": {
+     "accuracy": 0.9733333333333334,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 8,
+     "false_pass_rate": 0.04040404040404041,
+     "false_block": 0
+    },
+    "zh_bare": {
+     "accuracy": 0.8933333333333333,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 6,
+     "false_pass_rate": 0.030303030303030304,
+     "false_block": 26
+    },
+    "terse": {
+     "accuracy": 0.7866666666666666,
+     "n": 300,
+     "negatives": 198,
+     "false_pass": 58,
+     "false_pass_rate": 0.29292929292929293,
+     "false_block": 6
+    }
+   }
+  }
+ },
+ "typed": {
+  "test": {
+   "n": 2000,
+   "accuracy": 0.8085,
+   "soft_cross_entropy": 0.8461094071304781,
+   "brier_sum": 0.0431787884596008,
+   "gold_mass_at_selected_option": 0.6184235529414697,
+   "ece_10_bins_vs_gold_argmax": 0.18287795501947404,
+   "score_expectation_mae": 0.20419315107843894
+  }
+ },
+ "probes": [
+  {
+   "state": "23 tests passed, 1 failed.",
+   "gold_true": false,
+   "p_true": 0.24434654414653778
+  },
+  {
+   "state": "Tests run: 14, Failures: 1 — test_expired_token",
+   "gold_true": false,
+   "p_true": 4.870315387961455e-05
+  },
+  {
+   "state": "Tests run: 14, Failures: 0, Errors: 0. BUILD SUCCESS",
+   "gold_true": true,
+   "p_true": 0.9999991655349731
+  },
+  {
+   "state": "Compilation failed: UserAuthService.java:42: cannot find symbol verifyToken",
+   "gold_true": false,
+   "p_true": 0.013681433163583279
+  },
+  {
+   "state": "No tests were executed (0 tests collected).",
+   "gold_true": false,
+   "p_true": 0.998112678527832
+  },
+  {
+   "state": "All 14 tests passed.",
+   "gold_true": true,
+   "p_true": 0.9999997615814209
+  },
+  {
+   "state": "FAILED tests/test_auth.py::test_expired_token - AssertionError: assert 401 == 200",
+   "gold_true": false,
+   "p_true": 0.0008461527759209275
+  },
+  {
+   "state": "================ 14 passed in 0.31s ================",
+   "gold_true": true,
+   "p_true": 0.9999998807907104
+  }
+ ],
+ "ecosystems": [
+  {
+   "id": "go_pass",
+   "gold_true": true,
+   "p_true": 0.0032919154036790133
+  },
+  {
+   "id": "go_fail",
+   "gold_true": false,
+   "p_true": 0.0001702111039776355
+  },
+  {
+   "id": "go_build_failed",
+   "gold_true": false,
+   "p_true": 2.0956018488504924e-05
+  },
+  {
+   "id": "go_no_tests",
+   "gold_true": false,
+   "p_true": 9.879202116280794e-05
+  },
+  {
+   "id": "cargo_pass",
+   "gold_true": true,
+   "p_true": 0.9999996423721313
+  },
+  {
+   "id": "cargo_fail",
+   "gold_true": false,
+   "p_true": 1.3560459592554253e-05
+  },
+  {
+   "id": "maven_pass",
+   "gold_true": true,
+   "p_true": 0.9999982118606567
+  },
+  {
+   "id": "maven_error",
+   "gold_true": false,
+   "p_true": 0.00019633799092844129
+  },
+  {
+   "id": "gradle_fail",
+   "gold_true": false,
+   "p_true": 1.2375791129670688e-06
+  },
+  {
+   "id": "rspec_pass",
+   "gold_true": true,
+   "p_true": 0.9992088675498962
+  },
+  {
+   "id": "rspec_fail",
+   "gold_true": false,
+   "p_true": 5.430179226095788e-05
+  },
+  {
+   "id": "rspec_none",
+   "gold_true": false,
+   "p_true": 2.0393617887748405e-05
+  },
+  {
+   "id": "phpunit_pass",
+   "gold_true": true,
+   "p_true": 0.9999996423721313
+  },
+  {
+   "id": "phpunit_fail",
+   "gold_true": false,
+   "p_true": 2.251641035400098e-06
+  },
+  {
+   "id": "dotnet_pass",
+   "gold_true": true,
+   "p_true": 0.9998971223831177
+  },
+  {
+   "id": "dotnet_fail",
+   "gold_true": false,
+   "p_true": 0.00029324559727683663
+  },
+  {
+   "id": "ctest_pass",
+   "gold_true": true,
+   "p_true": 0.9999970197677612
+  },
+  {
+   "id": "ctest_fail",
+   "gold_true": false,
+   "p_true": 2.485976438038051e-07
+  },
+  {
+   "id": "jest_coverage_pass",
+   "gold_true": true,
+   "p_true": 1.0
+  },
+  {
+   "id": "agent_en_pass",
+   "gold_true": true,
+   "p_true": 0.9999924898147583
+  },
+  {
+   "id": "agent_en_fail",
+   "gold_true": false,
+   "p_true": 5.233090178080602e-06
+  },
+  {
+   "id": "agent_zh_pass",
+   "gold_true": true,
+   "p_true": 0.999996542930603
+  },
+  {
+   "id": "agent_zh_fail",
+   "gold_true": false,
+   "p_true": 2.251641035400098e-06
+  }
+ ]
+}

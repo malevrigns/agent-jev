@@ -160,6 +160,24 @@ Laya 已发布权重用了全部 1,200 个官方训练案例。本轮留出 120 
 
 ---
 
+## 编码门控
+
+Typed Decisions 里没有测试运行器的输出，可本 README 自己的例子问的正是这个：测试通过了吗？[`coding_gates/`](coding_gates/) 补上了这一块：2,100 次真实运行，覆盖 pytest、unittest、jest、mocha、vitest 和 node --test，每个项目的结果在构建时就已确定；另有 1,800 条一行摘要。在它的测试集上，v1 把 **348 个失败案例中的 123 个判成了通过**，其中 115 个是一行摘要，就像本 README 自己的例子。
+
+候选模型在这个训练集上继续训练 v1，同时回放 Typed Decisions，并改写问法：
+
+| | v1 | 候选 |
+| --- | ---: | ---: |
+| 测试集：失败案例被判通过 | 123 / 348 | **0 / 348** |
+| 没训练过的运行器（vitest、node --test）：失败运行被判通过 | 31 / 198 | **7 / 198** |
+| 没训练过的运行器：通过的运行被拦下 | 1 / 102 | 8 / 102 |
+| 五种没训练过的问法，测试集门控准确率 | 78.4% | **95.6%** |
+| Typed Decisions 测试集 top-1 | 79.50% | **80.85%** |
+
+两者走同一个推理引擎，温度都只在 Typed Decisions 校准集上拟合，每个留出集都只读了一次。以 BF16 发布文件为基准，Typed Decisions 提升 +1.35 个百分点，95% 置信区间 +0.20 到 +2.50。候选模型在极简问法和 node 的 `dot` 报告器上较弱，还会拦下一个输出 `[no test files]`、实际已通过的 `go test ./...`。这些局限、每个划分的数字，以及被放弃的第一次尝试，见 [`coding_gates/README.md`](coding_gates/README.md)。候选权重还没有发布；`fetch_v1_weights.py` 仍然下载 v1。
+
+---
+
 ## 时延与吞吐
 
 一块 RTX 5060（8 GB），PyTorch 2.9.1+cu128，Transformers 4.57.6，v1 权重加校准温度。每个测试案例一次请求，计时包含分词。优化前是 `main` 的 `1c2c1b1`，优化后是默认的 `--encoder auto`，两者用 `python -m jev_service.benchmark_serving` 先后连续测量。
@@ -340,7 +358,7 @@ python test_game_suite.py
 }
 ```
 
-上面的概率只说明字段形状。Score 的答案会多出 `score`、`level` 和 `legend`。批量写成 `{"requests": [{"id", "state", "questions"}, ...]}`。单次上限：32 段状态、128 道题、1,024 条候选路径，请求体 1 到 1,000,000 字节。同一题里的候选描述不能重复。
+上面的概率只说明字段形状，不是 v1 的回答：v1 对这段状态给出 P(true) 0.84，正是[编码门控](#编码门控)测到的那类错误。Score 的答案会多出 `score`、`level` 和 `legend`。批量写成 `{"requests": [{"id", "state", "questions"}, ...]}`。单次上限：32 段状态、128 道题、1,024 条候选路径，请求体 1 到 1,000,000 字节。同一题里的候选描述不能重复。
 
 ---
 
@@ -391,6 +409,7 @@ python test_game_suite.py
 | `agentjev_client.py` | Python 客户端 |
 | `agentjev_hook.py` | PreToolUse 门控 |
 | `typed_decisions/` | 协议、对照数字、逐题预测 |
+| `coding_gates/` | 编码门控基准：2,100 次录制的测试运行、划分、评测、候选微调及其结果 |
 | `assets/` | 头图、动图、静态页面 |
 | `docs/index.html` | 交互式使用手册：快速开始、三种问题、请求构造器、读懂概率、Claude Code 钩子，以及状态共享优化的实测回放 |
 | `run_practical_test.py`、`test_coding_scenarios.py`、`test_game_suite.py` | 对着活服务的演示 |
