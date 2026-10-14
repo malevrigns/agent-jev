@@ -68,6 +68,16 @@ The candidate rewords training gates (`wordings.py`): English and Chinese, with 
 - One recording: Windows 11 and fixed tool versions.
 - The 8 README probes and 23 ecosystem probes are hand-written and small. Read them as spot checks, not rates.
 
+## Weights
+
+The candidate is on the [`coding-gates`](https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates) branch of `aimeigaoshou/agent-jev`, commit `359aa94b`, made from the v1 commit. Only `model.safetensors` and `temperatures.json` differ from v1.
+
+```bash
+python fetch_v1_weights.py --variant coding-gates     # models/agentjev-coding-gates, pinned and hash-checked
+python -m jev_service.server --checkpoint models/agentjev-coding-gates/model.safetensors \
+    --model-path models/agentjev-coding-gates --temperatures models/agentjev-coding-gates/temperatures.json --port 8149
+```
+
 ## Reproduce
 
 ```bash

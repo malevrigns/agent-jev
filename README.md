@@ -174,7 +174,13 @@ A candidate continues v1 on that training split, replaying Typed Decisions and r
 | Gate accuracy in five wordings never trained on, test | 78.4% | **95.6%** |
 | Typed Decisions test, top-1 | 79.50% | **80.85%** |
 
-Both run through the same engine with temperatures fitted on Typed Decisions calibration only, and every held-out set was read once. Over the BF16 release file, the Typed Decisions gain is +1.35 points, 95% CI +0.20 to +2.50. The candidate is weaker on terse wordings and on node's `dot` reporter, and it blocks a passing `go test ./...` that prints `[no test files]`. [`coding_gates/README.md`](coding_gates/README.md) has those limits, every split, and the first attempt, which was dropped. The candidate's weights are not published yet; `fetch_v1_weights.py` still fetches v1.
+Both run through the same engine with temperatures fitted on Typed Decisions calibration only, and every held-out set was read once. Over the BF16 release file, the Typed Decisions gain is +1.35 points, 95% CI +0.20 to +2.50. The candidate is weaker on terse wordings and on node's `dot` reporter, and it blocks a passing `go test ./...` that prints `[no test files]`. [`coding_gates/README.md`](coding_gates/README.md) has those limits, every split, and the first attempt, which was dropped. The candidate is on the [`coding-gates`](https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates) branch of the model repository. v1 stays the default:
+
+```bash
+python fetch_v1_weights.py --variant coding-gates     # models/agentjev-coding-gates, pinned and hash-checked
+python -m jev_service.server --checkpoint models/agentjev-coding-gates/model.safetensors \
+    --model-path models/agentjev-coding-gates --temperatures models/agentjev-coding-gates/temperatures.json --port 8149
+```
 
 ---
 

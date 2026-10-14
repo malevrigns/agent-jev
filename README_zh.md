@@ -174,7 +174,13 @@ Typed Decisions 里没有测试运行器的输出，可本 README 自己的例�
 | 五种没训练过的问法，测试集门控准确率 | 78.4% | **95.6%** |
 | Typed Decisions 测试集 top-1 | 79.50% | **80.85%** |
 
-两者走同一个推理引擎，温度都只在 Typed Decisions 校准集上拟合，每个留出集都只读了一次。以 BF16 发布文件为基准，Typed Decisions 提升 +1.35 个百分点，95% 置信区间 +0.20 到 +2.50。候选模型在极简问法和 node 的 `dot` 报告器上较弱，还会拦下一个输出 `[no test files]`、实际已通过的 `go test ./...`。这些局限、每个划分的数字，以及被放弃的第一次尝试，见 [`coding_gates/README.md`](coding_gates/README.md)。候选权重还没有发布；`fetch_v1_weights.py` 仍然下载 v1。
+两者走同一个推理引擎，温度都只在 Typed Decisions 校准集上拟合，每个留出集都只读了一次。以 BF16 发布文件为基准，Typed Decisions 提升 +1.35 个百分点，95% 置信区间 +0.20 到 +2.50。候选模型在极简问法和 node 的 `dot` 报告器上较弱，还会拦下一个输出 `[no test files]`、实际已通过的 `go test ./...`。这些局限、每个划分的数字，以及被放弃的第一次尝试，见 [`coding_gates/README.md`](coding_gates/README.md)。候选权重已发布在模型仓库的 [`coding-gates`](https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates) 分支，默认仍是 v1：
+
+```bash
+python fetch_v1_weights.py --variant coding-gates     # models/agentjev-coding-gates, pinned and hash-checked
+python -m jev_service.server --checkpoint models/agentjev-coding-gates/model.safetensors \
+    --model-path models/agentjev-coding-gates --temperatures models/agentjev-coding-gates/temperatures.json --port 8149
+```
 
 ---
 
