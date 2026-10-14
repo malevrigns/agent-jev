@@ -160,6 +160,30 @@ Full numbers: [`typed_decisions/comparison.json`](typed_decisions/comparison.jso
 
 ---
 
+## Coding gates
+
+Typed Decisions never shows the model what a test runner prints, yet this README's own examples ask exactly that: have the tests passed? [`coding_gates/`](coding_gates/) does: 2,100 real runs of pytest, unittest, jest, mocha, vitest, and node --test on projects whose outcome was planted when they were built, plus 1,800 one-line summaries. On its test split, v1 calls **123 of 348 failing cases green**, 115 of them one-line summaries like this README's own example.
+
+A candidate continues v1 on that training split, replaying Typed Decisions and rewording the questions:
+
+| | v1 | candidate |
+| --- | ---: | ---: |
+| Failing cases called green, test | 123 / 348 | **0 / 348** |
+| Failing runs called green, runners never trained on (vitest, node --test) | 31 / 198 | **7 / 198** |
+| Passing runs blocked, runners never trained on | 1 / 102 | 8 / 102 |
+| Gate accuracy in five wordings never trained on, test | 78.4% | **95.6%** |
+| Typed Decisions test, top-1 | 79.50% | **80.85%** |
+
+Both run through the same engine with temperatures fitted on Typed Decisions calibration only, and every held-out set was read once. Over the BF16 release file, the Typed Decisions gain is +1.35 points, 95% CI +0.20 to +2.50. The candidate is weaker on terse wordings and on node's `dot` reporter, and it blocks a passing `go test ./...` that prints `[no test files]`. [`coding_gates/README.md`](coding_gates/README.md) has those limits, every split, and the first attempt, which was dropped. The candidate is on the [`coding-gates`](https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates) branch of the model repository. v1 stays the default:
+
+```bash
+python fetch_v1_weights.py --variant coding-gates     # models/agentjev-coding-gates, pinned and hash-checked
+python -m jev_service.server --checkpoint models/agentjev-coding-gates/model.safetensors \
+    --model-path models/agentjev-coding-gates --temperatures models/agentjev-coding-gates/temperatures.json --port 8149
+```
+
+---
+
 ## Latency & throughput
 
 One RTX 5060 (8 GB), PyTorch 2.9.1+cu128, Transformers 4.57.6, the v1 weights with calibration temperatures. Each test case is one request, timed with tokenization included. Before is `main` at `1c2c1b1`; after is the default `--encoder auto`. Both ran back to back with `python -m jev_service.benchmark_serving`.
@@ -340,7 +364,7 @@ The first two walk software-engineering scenes. The third walks customer-service
 }
 ```
 
-The probabilities above illustrate the shape. A score answer adds `score`, `level`, and `legend`. Batch with `{"requests": [{"id", "state", "questions"}, ...]}`. Limits on one call: 32 states, 128 questions, 1,024 candidate paths, and a body between 1 and 1,000,000 bytes. Candidate descriptions inside one question must be distinct.
+The probabilities above illustrate the shape; they are not v1's answer. v1 gives this state P(true) 0.84, one of the misses [Coding gates](#coding-gates) measures. A score answer adds `score`, `level`, and `legend`. Batch with `{"requests": [{"id", "state", "questions"}, ...]}`. Limits on one call: 32 states, 128 questions, 1,024 candidate paths, and a body between 1 and 1,000,000 bytes. Candidate descriptions inside one question must be distinct.
 
 ---
 
@@ -391,6 +415,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | `agentjev_client.py` | Python client |
 | `agentjev_hook.py` | PreToolUse gate |
 | `typed_decisions/` | Protocol, comparison, and per-question predictions |
+| `coding_gates/` | Coding-gate benchmark: 2,100 recorded test runs, splits, evaluation, the candidate fine-tune and its results |
 | `assets/` | Hero, figures, static arena |
 | `docs/index.html` | Interactive usage guide in Chinese: quickstart, the three primitives, a request builder, reading the distributions, the Claude Code hook, and the state-sharing measurements |
 | `run_practical_test.py`, `test_coding_scenarios.py`, `test_game_suite.py` | Live demonstrations |

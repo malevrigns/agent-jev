@@ -12,6 +12,10 @@ skeleton from config.json and loads model.safetensors over it. Every file is
 pinned by size and SHA-256 and lands in one directory, which is passed to the
 server as both the checkpoint folder and --model-path.
 
+``--variant coding-gates`` fetches the coding-gates candidate instead: v1
+continued on coding_gates/ (branch ``coding-gates``, made from the v1 commit).
+It keeps v1's config and tokenizer and changes the weights and temperatures.
+
 huggingface_hub is imported inside ``main()``, so this module - and the test
 that guards its verification logic - import on a checkout that has not
 installed it.
@@ -42,6 +46,16 @@ V1_FILES = {
 }
 V1_DTYPE = 'BF16'
 V1_TENSORS = 343
+GATES_REVISION = '359aa94b1af47ba4a2b2f969e99f40516cc3054e'
+GATES_FILES = dict(V1_FILES, **{
+    'model.safetensors': {'bytes': 1196881242,
+                          'sha256': 'd8e39f94dc949f459b5b5ce254311a2ef99c010b0036b847dc670bebf3a8f2d8'},
+    'temperatures.json': {'bytes': 403,
+                          'sha256': '7716193b27bb1276155e9ab467fe2897028e1a9c709be18a159242416418b69f'},
+})
+# variant: (revision, files, default directory); both hold 343 BF16 tensors
+RELEASES = {'v1': (V1_REVISION, V1_FILES, Path('models/agentjev-v1')),
+            'coding-gates': (GATES_REVISION, GATES_FILES, Path('models/agentjev-coding-gates'))}
 SAFETENSORS_TO_TORCH = {'BF16': 'bfloat16', 'F16': 'float16', 'F32': 'float32'}
 
 
@@ -85,26 +99,31 @@ def serve_command(model_dir, port=8149):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--model-dir', type=Path, default=Path('models/agentjev-v1'),
-                        help='directory that receives the weights, temperatures, config and tokenizer')
+    parser.add_argument('--variant', choices=sorted(RELEASES), default='v1',
+                        help='v1 (default) or the coding-gates candidate')
+    parser.add_argument('--model-dir', type=Path,
+                        help='directory that receives the weights, temperatures, config and tokenizer '
+                             '(default: models/agentjev-v1, or models/agentjev-coding-gates)')
     args = parser.parse_args(argv)
+    revision, files, default_dir = RELEASES[args.variant]
+    model_dir = args.model_dir or default_dir
 
     from huggingface_hub import hf_hub_download
 
-    args.model_dir.mkdir(parents=True, exist_ok=True)
-    for name, expected in V1_FILES.items():
-        path = Path(hf_hub_download(MODEL_REPO, name, revision=V1_REVISION, local_dir=str(args.model_dir)))
+    model_dir.mkdir(parents=True, exist_ok=True)
+    for name, expected in files.items():
+        path = Path(hf_hub_download(MODEL_REPO, name, revision=revision, local_dir=str(model_dir)))
         digest = verify_file(path, expected)
         print(f'{name}: {expected["bytes"]} bytes, sha256 {digest[:16]}... ok')
 
-    counts = safetensors_dtypes(args.model_dir / 'model.safetensors')
+    counts = safetensors_dtypes(model_dir / 'model.safetensors')
     if counts != {V1_DTYPE: V1_TENSORS}:
-        raise ValueError(f'revision {V1_REVISION} should hold {V1_TENSORS} {V1_DTYPE} tensors; header reports {counts}')
+        raise ValueError(f'revision {revision} should hold {V1_TENSORS} {V1_DTYPE} tensors; header reports {counts}')
 
-    print(json.dumps({'revision': V1_REVISION, 'tensors': V1_TENSORS, 'dtype': V1_DTYPE,
-                      'model_dir': str(args.model_dir), 'files': sorted(V1_FILES)}, indent=2))
+    print(json.dumps({'variant': args.variant, 'revision': revision, 'tensors': V1_TENSORS, 'dtype': V1_DTYPE,
+                      'model_dir': str(model_dir), 'files': sorted(files)}, indent=2))
     print('\nStart the service with:\n')
-    print(serve_command(args.model_dir))
+    print(serve_command(model_dir))
     return 0
 
 

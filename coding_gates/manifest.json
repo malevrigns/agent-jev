@@ -1,0 +1,34 @@
+{
+ "seed": 20261014,
+ "max_path_tokens": 2000,
+ "splits": {
+  "dev": {
+   "requests": 540,
+   "questions": 1569,
+   "dropped_too_long": 0,
+   "requests_sha256": "b10cb07128f8226e08d00701878095d410b01d50999542b91db836d661d2b709",
+   "questions_sha256": "70c279c414ad193f5b1c156d0ad77209309431e561793ba038f321d8b736a5a6"
+  },
+  "ood": {
+   "requests": 300,
+   "questions": 847,
+   "dropped_too_long": 0,
+   "requests_sha256": "caba7422918bd01af6beb24d3619f56baf0950ee1e0495d067d966c1e4bed371",
+   "questions_sha256": "609fc055a28492d286da59dc327ed1d58b46e25f696fe000785920a110d817ed"
+  },
+  "test": {
+   "requests": 551,
+   "questions": 1598,
+   "dropped_too_long": 0,
+   "requests_sha256": "d31638f877d92110be9d8c5d75d4f4dabd06ce0b1a4d569548937cd85b2a61ab",
+   "questions_sha256": "b51273db312df2f7cc75061195416a34f8ef678c723c45b7bebab888f0a40bd9"
+  },
+  "train": {
+   "requests": 2509,
+   "questions": 7292,
+   "dropped_too_long": 0,
+   "requests_sha256": "07d00b717ca8cae5b035ae4f865354099dc1c5967703a2a2b8eb9c361110bb78",
+   "questions_sha256": "9e9302d8cfae89dadcc19248e5e5ea728bc9ca4a20d4d8c1d999d050d1656cb1"
+  }
+ }
+}
