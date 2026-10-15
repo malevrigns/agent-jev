@@ -38,6 +38,7 @@ async function preview() {
 
 (async () => {
   const [mode = "stills", arg] = process.argv.slice(2);
+  if (!["stills", "video", "preview"].includes(mode)) throw new Error(`unknown mode ${mode}: stills, video or preview`);
   if (mode === "preview") return preview();
   if (!fs.existsSync(path.join(__dirname, "stage_data.js"))) throw new Error("run python site/video/build_stage.py first");
   const server = await serve(SITE);
@@ -62,7 +63,7 @@ async function preview() {
       await page.evaluate(t => window.render(t), t);
       await page.screenshot({ path: path.join(STILLS, `still_${String(t).replace(".", "_")}.png`) });
     }
-  } else if (mode === "video") {
+  } else {
     // crf 23 is what the committed video was encoded with
     const crf = arg || "23", n = Math.round(duration * FPS), file = path.join(MEDIA, "agentjev-demo.mp4");
     fs.mkdirSync(MEDIA, { recursive: true });
@@ -84,8 +85,6 @@ async function preview() {
     if (before !== timeline) fs.writeFileSync(TIMELINE, timeline);  // unchanged (perhaps CRLF in a Windows checkout): leave it
     console.log("ffmpeg exit", code, "size", (fs.statSync(file).size / 1e6).toFixed(2), "MB", "in", ((Date.now() - t0) / 1000).toFixed(0), "s");
     if (code !== 0) process.exitCode = 1;
-  } else {
-    throw new Error(`unknown mode ${mode}: stills, video or preview`);
   }
   console.log("page errors:", errors.length ? errors : "none");
   await browser.close();
