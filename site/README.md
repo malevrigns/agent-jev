@@ -14,7 +14,7 @@ The website in `docs/` (https://malevrigns.github.io/agent-jev/), the demo video
 | `video/stage.html`, `video/stage.js` | The video as a web page: `render(t)` draws the frame at t seconds |
 | `video/timeline.json` | Duration and chapters, written by `render.js`, read by `build_site.py` |
 | `capture.py` | Records `data/capture.json` again (GPU, see below) |
-| `check.js` | Loads `docs/` in headless Chrome at 1440, 820 and 390 px wide, reports script errors and horizontal overflow, screenshots each section into `site/shots/` |
+| `check.js` | `node site/check.js [desktop\|tablet\|mobile]` loads `docs/` in headless Chrome at 1440, 820 and 390 px wide, reports script errors and horizontal overflow, and screenshots each section into `site/shots/` |
 
 The build also reads files elsewhere in the repo: `coding_gates/results` and `coding_gates/runs.jsonl.gz`, `jev_service/serving_benchmark.json`, the Typed Decisions table in `README.md`, and `docs/index.html` as of commit `90b37d7`. That last file is the earlier single-page manual, which becomes `docs/guide.html`.
 

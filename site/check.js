@@ -15,7 +15,11 @@ const only = process.argv[2];
     const errors = [];
     page.on("console", m => { if (["error", "warning"].includes(m.type())) errors.push(m.type() + ": " + m.text()) });
     page.on("pageerror", e => errors.push("pageerror: " + e.message));
-    page.on("requestfailed", r => errors.push("requestfailed: " + r.url().slice(0, 120) + " " + (r.failure() || {}).errorText));
+    page.on("requestfailed", r => {
+      const reason = (r.failure() || {}).errorText;
+      // Chrome cancels the video's preload="metadata" request once it has the metadata
+      if (!(reason === "net::ERR_ABORTED" && r.resourceType() === "media")) errors.push("requestfailed: " + r.url().slice(0, 120) + " " + reason);
+    });
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile });
     await page.goto(url, { waitUntil: "load" });
     await new Promise(r => setTimeout(r, 2600));
