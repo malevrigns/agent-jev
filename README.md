@@ -425,6 +425,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | `coding_gates/` | Coding-gate benchmark: 2,100 recorded test runs, splits, evaluation, the candidate fine-tune and its results |
 | `assets/` | Hero, figures, static arena |
 | `docs/` | The project website, in Chinese ([https://malevrigns.github.io/agent-jev/](https://malevrigns.github.io/agent-jev/)): the demo video, recorded requests and hook calls, the coding-gates results, a request builder and the usage guide. `docs/guide.html` keeps the earlier single-page manual |
+| `site/` | Sources of the website and the demo video: the page template, the recorded runs they read, and the build and render scripts ([`site/README.md`](site/README.md)) |
 | `run_practical_test.py`, `test_coding_scenarios.py`, `test_game_suite.py` | Live demonstrations |
 
 Serving notes that are easy to miss live in [`jev_service/README.md`](jev_service/README.md).

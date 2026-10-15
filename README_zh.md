@@ -425,6 +425,7 @@ python test_game_suite.py
 | `coding_gates/` | 编码门控基准：2,100 次录制的测试运行、划分、评测、候选微调及其结果 |
 | `assets/` | 头图、动图、静态页面 |
 | `docs/` | 项目官网（[https://malevrigns.github.io/agent-jev/](https://malevrigns.github.io/agent-jev/)）：演示视频、真实请求与钩子的实测回放、编码门控结果、请求构造器和上手指南；`docs/guide.html` 保留之前的单页手册 |
+| `site/` | 官网和演示视频的源文件：页面模板、它们读取的实测记录、构建和渲染脚本（见 [`site/README.md`](site/README.md)） |
 | `run_practical_test.py`、`test_coding_scenarios.py`、`test_game_suite.py` | 对着活服务的演示 |
 
 服务侧容易漏掉的说明在 [`jev_service/README.md`](jev_service/README.md)。
