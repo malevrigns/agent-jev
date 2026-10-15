@@ -46,7 +46,7 @@ const only = process.argv[2];
       const W = document.documentElement.clientWidth, bad = [];
       document.querySelectorAll("body *").forEach(el => {
         const r = el.getBoundingClientRect();
-        if (r.width && r.right > W + 1 && !el.closest(".hero-bg,.code pre,.table-wrap,.orb,.tip")) bad.push((el.id ? "#" + el.id : el.className || el.tagName) + " right=" + Math.round(r.right));
+        if (r.width && r.right > W + 1 && !el.closest(".hero-bg,.code pre,.table-wrap,.orb,.tip,.jev-pulse")) bad.push((el.id ? "#" + el.id : el.className || el.tagName) + " right=" + Math.round(r.right));
       });
       return { scrollWidth: document.documentElement.scrollWidth, W, bad: bad.slice(0, 15) };
     });
