@@ -13,6 +13,7 @@
 
 <p align="center">
   Weights: <a href="https://huggingface.co/aimeigaoshou/agent-jev">https://huggingface.co/aimeigaoshou/agent-jev</a>
+  &nbsp;·&nbsp; Website: <a href="https://malevrigns.github.io/agent-jev/">https://malevrigns.github.io/agent-jev/</a>
 </p>
 
 <p align="center">
@@ -36,6 +37,12 @@
 AgentJev-0.6B does not write. You hand it a state and questions you have already phrased. One forward pass returns a probability for every option. The number of decoded tokens is zero.
 
 Put it where an agent loop needs a gate, a route, or a score. Leave the prose to a larger model.
+
+<p align="center">
+  <a href="https://malevrigns.github.io/agent-jev/#demo"><img src="assets/agentjev_demo.webp" alt="From the demo video: the README's “23 tests passed, 1 failed.” example, scored by v1 and by the coding-gates weights, then the Claude Code hook." width="100%"></a>
+  <br>
+  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ Watch the 82-second demo</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4, 1920×1080, 4.9 MB</a> · Silent, with Chinese and English captions. Every probability and timing in it is a recorded run on one RTX 5060.</sub>
+</p>
 
 ---
 
@@ -417,7 +424,7 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | `typed_decisions/` | Protocol, comparison, and per-question predictions |
 | `coding_gates/` | Coding-gate benchmark: 2,100 recorded test runs, splits, evaluation, the candidate fine-tune and its results |
 | `assets/` | Hero, figures, static arena |
-| `docs/index.html` | Interactive usage guide in Chinese: quickstart, the three primitives, a request builder, reading the distributions, the Claude Code hook, and the state-sharing measurements |
+| `docs/` | The project website, in Chinese ([https://malevrigns.github.io/agent-jev/](https://malevrigns.github.io/agent-jev/)): the demo video, recorded requests and hook calls, the coding-gates results, a request builder and the usage guide. `docs/guide.html` keeps the earlier single-page manual |
 | `run_practical_test.py`, `test_coding_scenarios.py`, `test_game_suite.py` | Live demonstrations |
 
 Serving notes that are easy to miss live in [`jev_service/README.md`](jev_service/README.md).
