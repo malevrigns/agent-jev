@@ -41,7 +41,7 @@ AgentJev-0.6B 不写句子。你给它一段状态，和已经写好的问题。
 <p align="center">
   <a href="https://malevrigns.github.io/agent-jev/#demo"><img src="assets/agentjev_demo.webp" alt="演示视频片段：README 的“23 tests passed, 1 failed.”例子，v1 与 coding-gates 新权重的判断，接着是 Claude Code 钩子。" width="100%"></a>
   <br>
-  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ 观看 82 秒演示视频</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4，1920×1080，4.9 MB</a> · 无声，中英字幕。画面里的概率和耗时都是同一块 RTX 5060 上的实测。</sub>
+  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ 观看 82 秒演示视频</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4，1920×1080，6.7 MB</a> · 配原创轻音乐，无旁白；中英字幕已烧进画面，静音也看得懂。画面里的概率和耗时都是同一块 RTX 5060 上的实测。</sub>
 </p>
 
 ---

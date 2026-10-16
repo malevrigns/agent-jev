@@ -39,8 +39,8 @@
   --ease:cubic-bezier(.2,.7,.2,1);
 }
 *,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:76px}
-body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.72 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:76px;overflow-x:clip}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.72 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;overflow-x:clip;max-width:100vw}
 body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:90;opacity:.04;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
 ::selection{background:rgba(217,180,108,.32);color:#fff}
@@ -98,9 +98,18 @@ button{font:inherit;color:inherit}
 .mini-btn:hover{color:var(--text);border-color:var(--line-3)}
 .mini-btn.done{color:var(--ok);border-color:rgba(134,212,164,.4)}
 
+/* ---------- living background: one fixed, looping layer behind every section ---------- */
+.page-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict;background:var(--bg)}
+.page-bg::before{content:"";position:absolute;inset:0;background:url(media/bg-poster.jpg) center/cover no-repeat;opacity:.5;transition:opacity 1.6s ease}
+.page-bg.live::before{opacity:0}
+.page-bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.6s ease}
+.page-bg video.on{opacity:.5}
+.page-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 85% 75% at 50% 42%,transparent 38%,rgba(9,9,10,.6) 100%)}
+
 /* ---------- hero ---------- */
-.hero{position:relative;min-height:100vh;display:flex;align-items:center;padding:130px 0 90px;overflow:hidden;isolation:isolate}
-.hero-bg{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;padding:130px 0 90px;overflow:hidden;overflow:clip;isolation:isolate}
+.hero-layout>*{min-width:0}
+.hero-bg{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:paint}
 .hero-bg .grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:72px 72px;background-position:-1px -1px;-webkit-mask-image:radial-gradient(ellipse 75% 65% at 55% 38%,#000 20%,transparent 72%);mask-image:radial-gradient(ellipse 75% 65% at 55% 38%,#000 20%,transparent 72%);opacity:.6}
 .orb{position:absolute;border-radius:50%;filter:blur(70px);will-change:transform;animation:drift 20s ease-in-out infinite alternate}
 .orb.o1{width:680px;height:680px;left:-220px;top:-180px;background:radial-gradient(circle,rgba(217,180,108,.30),transparent 62%)}
@@ -544,6 +553,7 @@ footer{padding:56px 0 64px;border-top:1px solid var(--line);color:var(--muted);f
   .foot{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:reduce){
+  .page-bg video{display:none}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
 
@@ -616,6 +626,7 @@ ul.plain li::before{content:"";position:absolute;left:4px;top:.72em;width:6px;he
 </style>
 </head>
 <body>
+<div class="page-bg" aria-hidden="true"><video id="bg-video" muted loop playsinline preload="none" tabindex="-1"><source src="media/bg-loop.webm" type="video/webm"><source src="media/bg-loop.mp4" type="video/mp4"></video></div>
 <a class="sr" href="#main">跳到正文</a>
 <header class="nav" id="nav">
   <div class="wrap">
@@ -715,7 +726,7 @@ ul.plain li::before{content:"";position:absolute;left:4px;top:.72em;width:6px;he
       </div>
     </div>
     <div class="chapters reveal" style="--d:200" id="chapters"></div>
-    <p class="video-note">无声，中英字幕已烧进画面。动画放慢了，耗时以画面上标注的实测值为准。也可以<a href="media/agentjev-demo.mp4" download>下载 MP4</a>（4.9 MB，1920×1080）。</p>
+    <p class="video-note">配有一段原创轻音乐（没有旁白），中英字幕已烧进画面，静音观看也完整。动画放慢了，耗时以画面上标注的实测值为准。也可以<a href="media/agentjev-demo.mp4" download>下载 MP4</a>（6.7 MB，1920×1080）。</p>
   </div>
 </section>
 
@@ -1295,6 +1306,19 @@ function setRows(box,probs,alive,ms=900){
     if(shown){finish(H[idx],()=>true);foot.classList.add("show");if(H[idx].key==="hook")verdict.classList.add("show")}
   });
   play(0);
+})();
+
+/* ---------- living background ---------- */
+(function(){
+  const wrap=document.querySelector(".page-bg"), v=document.getElementById("bg-video");
+  if(!wrap||!v||RM)return;
+  const conn=navigator.connection||{};
+  if(conn.saveData)return;
+  v.muted=true;
+  const go=()=>{const p=v.play();if(p&&p.catch)p.catch(()=>{})};
+  v.addEventListener("playing",()=>{v.classList.add("on");wrap.classList.add("live")},{once:true});
+  go();
+  document.addEventListener("visibilitychange",()=>{document.hidden?v.pause():go()});
 })();
 
 /* ---------- demo video ---------- */
