@@ -41,7 +41,7 @@ Put it where an agent loop needs a gate, a route, or a score. Leave the prose to
 <p align="center">
   <a href="https://malevrigns.github.io/agent-jev/#demo"><img src="assets/agentjev_demo.webp" alt="From the demo video: the README's “23 tests passed, 1 failed.” example, scored by v1 and by the coding-gates weights, then the Claude Code hook." width="100%"></a>
   <br>
-  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ Watch the 82-second demo</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4, 1920×1080, 6.7 MB</a> · Original ambient soundtrack, no voice-over; Chinese and English captions are burned in, so it works on mute. Every probability and timing in it is a recorded run on one RTX 5060.</sub>
+  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ Watch the 82-second demo</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4, 1920×1080, 8.9 MB</a> · Original ambient soundtrack, no voice-over; Chinese and English captions are burned in, so it works on mute. Every probability and timing in it is a recorded run on one RTX 5060.</sub>
 </p>
 
 ---
