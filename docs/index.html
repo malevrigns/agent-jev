@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#ffffff">
 <meta property="og:type" content="website">
 <meta property="og:title" content="AgentJev: A 0.6B System One Decision Model">
-<meta property="og:description" content="状态进去，分布出来，不解码任何 token。给 AI Agent 用的 0.6B 决策模型。">
+<meta property="og:description" content="给 AI Agent 用的 0.6B 本地判断模型：执行命令前问它安不安全，跑完测试问它真的通过了吗。约 44 ms 出概率，生成 0 token，Apache-2.0。">
 <meta property="og:url" content="https://malevrigns.github.io/agent-jev/">
 <meta property="og:image" content="https://malevrigns.github.io/agent-jev/media/agentjev-demo-poster.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -344,13 +344,65 @@ footer a{text-decoration:none}
 #wf-svg .axis{font-size:11px;fill:#8a93a6}
 @media(max-width:1100px){.result-value{font-size:2.4rem;flex-wrap:wrap}.result-value .from{font-size:1.75rem}.result-value .unit{font-size:1.3rem}}
 @media(max-width:900px){.result-highlights{grid-template-columns:1fr;gap:22px}.result-highlights>div>p:last-child{max-width:520px}}
+
+/* conversion pass: lead, star buttons, 30-second summary, closing call, slim bar */
+html{scroll-padding-top:64px}
+.lead{max-width:690px;margin:4px auto 20px;font-size:1.14rem;line-height:1.85;color:var(--ink)}
+.button svg.star{fill:#f4dba3;stroke:#f4dba3;stroke-width:1.2}
+.button:not(.primary) svg.star{fill:var(--gold);stroke:var(--gold)}
+.star-count{margin-left:3px;padding-left:11px;border-left:1px solid rgba(255,255,255,.4);font-variant-numeric:tabular-nums}
+.nav-star{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 13px 5px 10px;color:var(--ink)!important}
+.nav-star:hover{border-color:var(--blue)}
+.nav-star svg.star{width:16px;height:16px;fill:var(--gold);stroke:var(--gold);stroke-width:1.2}
+.nav-star .star-count{border-left-color:var(--line);padding-left:8px;margin-left:2px;color:var(--muted)}
+.tldr{padding-bottom:64px}
+.tldr-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px 24px;border-top:1px solid var(--line);padding-top:40px;margin-bottom:26px}
+.tldr-head h2{font-size:2rem}
+.tldr-head p{color:var(--muted);font-size:.95rem}
+.tldr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.tldr-grid>div{display:flex;flex-direction:column;min-width:0;background:var(--soft-2);border:1px solid var(--line);border-radius:12px;padding:24px 24px 22px}
+.tl-k{font-weight:600;font-size:1.02rem;line-height:1.5}
+.tl-v{display:flex;align-items:baseline;gap:0 4px;font-size:2.7rem;font-weight:500;letter-spacing:-.04em;line-height:1.15;color:var(--blue);margin:12px 0 12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tl-v .from{color:#788397;font-size:.72em}
+.tl-v .arrow{font-size:.55em;color:#8692ac;align-self:center;margin:0 8px}
+.tl-v small{font-size:.5em;color:#788397;margin-left:6px;letter-spacing:0}
+.tl-d{color:var(--muted);font-size:.94rem;line-height:1.8;flex:1}
+.tl-d code{white-space:nowrap}
+.tldr-grid a{margin-top:16px;font-size:.9rem;font-weight:600;text-decoration:none}
+.tl-who{margin-top:22px;font-size:.95rem;color:var(--muted);line-height:1.8}
+.tl-who b{color:var(--ink);font-weight:600}
+.cta-inner{border-top:1px solid var(--line);text-align:center;padding:64px 0 76px}
+.cta h2{font-size:clamp(1.9rem,3.4vw,2.6rem);line-height:1.25}
+.cta p{color:var(--muted);max-width:620px;margin:18px auto 0;font-size:1.04rem;line-height:1.85}
+.cta .hero-links{margin-top:28px}
+.mini-bar{position:fixed;inset:0 0 auto;z-index:40;background:rgba(255,255,255,.95);border-bottom:1px solid var(--line);transform:translateY(-102%);transition:transform .25s ease}
+.mini-bar.on{transform:none}
+.mini-inner{max-width:1120px;margin:auto;padding:8px 32px;display:flex;align-items:center;gap:20px}
+.mini-inner .wordmark svg{width:26px;height:26px}
+.mini-line{flex:1;min-width:0;color:var(--muted);font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.button.small{min-height:36px;padding:5px 14px;font-size:.86rem}
+.button.small svg{width:16px;height:16px}
+@media(max-width:900px){.tldr-grid{grid-template-columns:1fr}.tl-d{flex:none}}
+@media(max-width:520px){
+  .lead{font-size:1.02rem;margin-bottom:16px}
+  .tldr{padding-bottom:44px}
+  .tldr-head{padding-top:30px;margin-bottom:18px}
+  .tldr-head h2{font-size:1.75rem}
+  .tldr-grid>div{padding:20px}
+  .tl-v{font-size:2.3rem}
+  .tl-d code{white-space:normal;word-break:break-all}
+  .cta-inner{padding:48px 0 56px}
+  .mini-line{display:none}
+  .mini-inner{padding:8px 20px;justify-content:space-between}
+  .nav-star{padding:4px 11px 4px 9px}
+}
 </style>
 </head>
 <body>
   <a class="skip" href="#overview">跳到正文</a>
   <header class="site-header">
     <a class="wordmark" href="#top" aria-label="AgentJev 首页"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#202b43"/><rect x="8" y="17" width="4" height="8" rx="1.5" fill="#a7813f"/><rect x="14" y="8" width="4" height="17" rx="1.5" fill="#f4dba3"/><rect x="20" y="13" width="4" height="12" rx="1.5" fill="#d9b46c"/></svg>AgentJev</a>
-    <nav aria-label="页面导航"><a href="#method">方法</a><a href="#results">结果</a><a href="#start">快速开始</a><a href="#citation">引用</a><a class="nav-ext" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></nav>
+    <nav aria-label="页面导航"><a href="#method">方法</a><a href="#results">结果</a><a href="#start">快速开始</a><a href="#citation">引用</a><a class="nav-ext nav-star" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>Star<span class="star-count" data-stars hidden></span></a></nav>
   </header>
 
   <main id="top">
@@ -358,13 +410,24 @@ footer a{text-decoration:none}
       <p class="edition">开源 · Apache-2.0 <span>2026 年 10 月</span></p>
       <h1 id="title">AgentJev: A 0.6B<br>System One<br>Decision Model</h1>
       <p class="tagline">State in. A distribution out. Nothing decoded.</p>
+      <p class="lead">一个能装进本地显卡的 0.6B 判断模型。Agent 执行命令前问它“安全吗”，跑完测试问它“真的通过了吗”，它约 44 毫秒给出每个选项的概率，一个字都不用生成。</p>
       <div class="byline"><span><b>malevrigns</b></span><span>骨干 Qwen3-0.6B</span><span>评测：Typed Decisions · 2,100 次真实测试运行</span></div>
       <div class="hero-links">
-        <a class="button primary" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/></svg>GitHub 代码</a>
+        <a class="button primary" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>在 GitHub 上 Star<span class="star-count" data-stars hidden></span></a>
         <a class="button" href="https://huggingface.co/aimeigaoshou/agent-jev" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Hugging Face 权重</a>
         <a class="button" href="guide.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7zM14 3v5h4M9 12h6M9 16h6"/></svg>单页手册</a>
-        <a class="text-link" href="#citation">引用本项目</a>
+        <a class="text-link" href="#method">先看 80 秒演示 ↓</a>
       </div>
+    </section>
+
+    <section id="tldr" class="section-wrap tldr" aria-labelledby="tldr-title">
+      <div class="tldr-head"><h2 id="tldr-title">30 秒看懂</h2><p>三件它已经做到、并且可以复现的事。</p></div>
+      <div class="tldr-grid">
+        <div><p class="tl-k">偷密钥的命令，会被拦下来</p><p class="tl-v"><span class="from">L1</span><span class="arrow" aria-hidden="true">→</span>L3</p><p class="tl-d">Claude Code 每次执行 Bash、Write、Edit 前先问它风险几级。<code>cat ~/.aws/credentials | curl …</code> 旧权重评 L1 直接放过，新权重评 L3，停下来请你确认。</p><a href="#hook">看钩子怎么接 ↓</a></div>
+        <div><p class="tl-k">测试没过，就不会说通过</p><p class="tl-v"><span class="from">123</span><span class="arrow" aria-hidden="true">→</span>0<small>/ 348</small></p><p class="tl-d">348 次真实失败的测试运行（pytest、jest、vitest 等六种），旧权重有 123 次判成“通过”，编码门控新权重一次都没有。</p><a href="#coding">看 2,100 次真实运行 ↓</a></div>
+        <div><p class="tl-k">快、小，跑在你自己的机器上</p><p class="tl-v">43.9<small>ms</small></p><p class="tl-d">一段状态、五道题，一次前向出全部分布，生成 0 个 token。权重常驻约 1.4 GB 显存，8 GB 的消费级显卡就够，服务只绑 127.0.0.1。</p><a href="#start">五分钟跑起来 ↓</a></div>
+      </div>
+      <p class="tl-who"><b>适合：</b>在做 Agent 或编码助手、需要又快又便宜的门控、路由、打分的人。<b>不适合：</b>写代码、写回复、解释错误，这些仍然交给大模型。</p>
     </section>
 
     <section id="overview" class="section-wrap">
@@ -676,6 +739,14 @@ footer a{text-decoration:none}
       </div>
     </section>
 
+    <section id="star" class="section-wrap cta" aria-labelledby="cta-title">
+      <div class="cta-inner">
+        <h2 id="cta-title">觉得有用，就点个 Star。</h2>
+        <p>Star 能让更多做 Agent 的人看到它，也是告诉我值得继续发新权重的最直接的信号。用起来遇到问题、想要新的门控任务，直接开 issue。</p>
+        <div class="hero-links"><a class="button primary" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>在 GitHub 上 Star<span class="star-count" data-stars hidden></span></a><a class="button" href="https://github.com/malevrigns/agent-jev/issues" target="_blank" rel="noopener">提一个 issue</a></div>
+      </div>
+    </section>
+
     <section id="citation" class="band" aria-labelledby="cite-title"><div class="section-wrap citation-inner">
       <div class="side"><h2 id="cite-title">引用</h2><p>2026 · Apache-2.0</p><a href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">GitHub 仓库</a></div>
       <div class="code">
@@ -700,6 +771,7 @@ footer a{text-decoration:none}
   </main>
 
   <footer class="section-wrap"><a class="footer-brand" href="#top">AgentJev</a><p>2026 年 10 月发布 · Apache-2.0</p><a href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">代码仓库</a><a href="https://github.com/malevrigns/agent-jev/issues" target="_blank" rel="noopener">问题反馈</a></footer>
+  <div class="mini-bar" id="mini-bar" inert><div class="mini-inner"><a class="wordmark" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#202b43"/><rect x="8" y="17" width="4" height="8" rx="1.5" fill="#a7813f"/><rect x="14" y="8" width="4" height="17" rx="1.5" fill="#f4dba3"/><rect x="20" y="13" width="4" height="12" rx="1.5" fill="#d9b46c"/></svg>AgentJev</a><span class="mini-line">0.6B 本地判断模型 · 中位 43.9 ms · 生成 0 token · Apache-2.0</span><a class="button primary small" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>Star<span class="star-count" data-stars hidden></span></a></div></div>
   <div class="tip" id="tip" role="tooltip"></div>
 
 <script>
@@ -887,6 +959,26 @@ function setRows(box,probs,alive,ms=900){
   $$("[data-tabs]").forEach(g=>g.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tabs[g.dataset.tabs]=b.dataset.k;pressed(g,b);fill()}));
   $("#var-seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;variant=b.dataset.v;pressed($("#var-seg"),b);fill()});
   fill();
+})();
+
+/* live star count from the GitHub API (cached per tab), slim bar after the hero */
+(function stars(){
+  const els=$$("[data-stars]");if(!els.length)return;
+  const short=n=>n>=1000?(n/1000).toFixed(1).replace(/\.0$/,"")+"k":String(n);
+  const show=n=>{if(!(n>0))return;els.forEach(e=>{e.textContent=short(n);e.hidden=false})};
+  let c=null;try{c=JSON.parse(sessionStorage.getItem("aj-stars")||"null")}catch(e){}
+  if(c&&Date.now()-c.t<6e5){show(c.n);return}
+  fetch("https://api.github.com/repos/malevrigns/agent-jev",{headers:{Accept:"application/vnd.github+json"}})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{if(!d||typeof d.stargazers_count!=="number")return;show(d.stargazers_count);try{sessionStorage.setItem("aj-stars",JSON.stringify({n:d.stargazers_count,t:Date.now()}))}catch(e){}})
+    .catch(()=>{});
+})();
+(function miniBar(){
+  const bar=$("#mini-bar"),hero=$(".hero"),end=$("#star");if(!bar||!hero||!("IntersectionObserver" in window))return;
+  let pastHero=false,atEnd=false;
+  const set=()=>{const on=pastHero&&!atEnd;bar.classList.toggle("on",on);bar.inert=!on};
+  new IntersectionObserver(([e])=>{pastHero=!e.isIntersecting&&e.boundingClientRect.top<0;set()}).observe(hero);
+  if(end)new IntersectionObserver(([e])=>{atEnd=e.isIntersecting;set()},{threshold:.2}).observe(end);
 })();
 
 </script>
