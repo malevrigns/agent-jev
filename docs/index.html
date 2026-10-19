@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AgentJev: A 0.6B System One Decision Model</title>
-<meta name="description" content="AgentJev-0.6B：给 AI Agent 用的决策模型。把状态和写好的问题交给它，一次前向返回每个选项的概率，生成 token 数为 0。Typed Decisions top-1 79.25%，编码门控把失败被判通过从 123 降到 0，RTX 5060 上单案中位时延 43.9 ms。">
+<meta name="description" content="AgentJev-0.6B：一个回答 Agent 选择题的小模型。你写好题目和选项，它返回每个选项的概率，不生成文字。Typed Decisions top-1 79.25%；编码门控把失败被判通过从 123 次降到 0；RTX 5060 上单案中位 43.9 ms。">
 <meta name="theme-color" content="#ffffff">
 <meta property="og:type" content="website">
 <meta property="og:title" content="AgentJev: A 0.6B System One Decision Model">
-<meta property="og:description" content="给 AI Agent 用的 0.6B 本地判断模型：执行命令前问它安不安全，跑完测试问它真的通过了吗。约 44 ms 出概率，生成 0 token，Apache-2.0。">
+<meta property="og:description" content="我做的一个 0.6B 小模型，专门回答 Agent 运行时的选择题：命令能不能跑、测试过没过、下一步做什么。本地运行，中位 43.9 ms，不生成文字。">
 <meta property="og:url" content="https://malevrigns.github.io/agent-jev/">
 <meta property="og:image" content="https://malevrigns.github.io/agent-jev/media/agentjev-demo-poster.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -396,10 +396,19 @@ html{scroll-padding-top:64px}
   .mini-inner{padding:8px 20px;justify-content:space-between}
   .nav-star{padding:4px 11px 4px 9px}
 }
+
+/* dot-grid background: hero and the light bands */
+.site-header,main,footer{position:relative;z-index:1}
+.dots{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.dots canvas{display:block;width:100%;height:100%}
+.dots-hero{bottom:auto;height:900px}
+.band{position:relative;overflow:hidden}
+.band>.section-wrap{position:relative;z-index:1}
 </style>
 </head>
 <body>
   <a class="skip" href="#overview">跳到正文</a>
+  <div class="dots dots-hero" data-dots="hero" aria-hidden="true"><canvas></canvas></div>
   <header class="site-header">
     <a class="wordmark" href="#top" aria-label="AgentJev 首页"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#202b43"/><rect x="8" y="17" width="4" height="8" rx="1.5" fill="#a7813f"/><rect x="14" y="8" width="4" height="17" rx="1.5" fill="#f4dba3"/><rect x="20" y="13" width="4" height="12" rx="1.5" fill="#d9b46c"/></svg>AgentJev</a>
     <nav aria-label="页面导航"><a href="#method">方法</a><a href="#results">结果</a><a href="#start">快速开始</a><a href="#citation">引用</a><a class="nav-ext nav-star" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>Star<span class="star-count" data-stars hidden></span></a></nav>
@@ -410,28 +419,28 @@ html{scroll-padding-top:64px}
       <p class="edition">开源 · Apache-2.0 <span>2026 年 10 月</span></p>
       <h1 id="title">AgentJev: A 0.6B<br>System One<br>Decision Model</h1>
       <p class="tagline">State in. A distribution out. Nothing decoded.</p>
-      <p class="lead">一个能装进本地显卡的 0.6B 判断模型。Agent 执行命令前问它“安全吗”，跑完测试问它“真的通过了吗”，它约 44 毫秒给出每个选项的概率，一个字都不用生成。</p>
+      <p class="lead">我做了一个 0.6B 的小模型，专门回答 Agent 运行时那些选择题：这条命令能不能跑，测试到底过没过，下一步该干什么。你把题目和选项写好，它直接返回每个选项的概率，不生成文字。在我的 RTX 5060 上，一段状态问 5 道题，中位 43.9 毫秒。</p>
       <div class="byline"><span><b>malevrigns</b></span><span>骨干 Qwen3-0.6B</span><span>评测：Typed Decisions · 2,100 次真实测试运行</span></div>
       <div class="hero-links">
         <a class="button primary" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>在 GitHub 上 Star<span class="star-count" data-stars hidden></span></a>
         <a class="button" href="https://huggingface.co/aimeigaoshou/agent-jev" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Hugging Face 权重</a>
         <a class="button" href="guide.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7zM14 3v5h4M9 12h6M9 16h6"/></svg>单页手册</a>
-        <a class="text-link" href="#method">先看 80 秒演示 ↓</a>
+        <a class="text-link" href="#method">看演示视频（82 秒）↓</a>
       </div>
     </section>
 
     <section id="tldr" class="section-wrap tldr" aria-labelledby="tldr-title">
-      <div class="tldr-head"><h2 id="tldr-title">30 秒看懂</h2><p>三件它已经做到、并且可以复现的事。</p></div>
+      <div class="tldr-head"><h2 id="tldr-title">先说结果</h2><p>下面三条都能在仓库里复现。</p></div>
       <div class="tldr-grid">
-        <div><p class="tl-k">偷密钥的命令，会被拦下来</p><p class="tl-v"><span class="from">L1</span><span class="arrow" aria-hidden="true">→</span>L3</p><p class="tl-d">Claude Code 每次执行 Bash、Write、Edit 前先问它风险几级。<code>cat ~/.aws/credentials | curl …</code> 旧权重评 L1 直接放过，新权重评 L3，停下来请你确认。</p><a href="#hook">看钩子怎么接 ↓</a></div>
-        <div><p class="tl-k">测试没过，就不会说通过</p><p class="tl-v"><span class="from">123</span><span class="arrow" aria-hidden="true">→</span>0<small>/ 348</small></p><p class="tl-d">348 次真实失败的测试运行（pytest、jest、vitest 等六种），旧权重有 123 次判成“通过”，编码门控新权重一次都没有。</p><a href="#coding">看 2,100 次真实运行 ↓</a></div>
-        <div><p class="tl-k">快、小，跑在你自己的机器上</p><p class="tl-v">43.9<small>ms</small></p><p class="tl-d">一段状态、五道题，一次前向出全部分布，生成 0 个 token。权重常驻约 1.4 GB 显存，8 GB 的消费级显卡就够，服务只绑 127.0.0.1。</p><a href="#start">五分钟跑起来 ↓</a></div>
+        <div><p class="tl-k">危险命令会先停下来问你</p><p class="tl-v"><span class="from">L1</span><span class="arrow" aria-hidden="true">→</span>L3</p><p class="tl-d">接进 Claude Code 以后，每次跑 Bash、Write、Edit 之前都会先问它风险几级。比如 <code>cat ~/.aws/credentials | curl …</code>，旧权重只给 L1，直接放过去了；新权重给 L3，会弹窗让你确认。</p><a href="#hook">看钩子怎么接 ↓</a></div>
+        <div><p class="tl-k">失败的测试不会再被当成通过</p><p class="tl-v"><span class="from">123</span><span class="arrow" aria-hidden="true">→</span>0<small>/ 348</small></p><p class="tl-d">我拿 348 次真实失败的测试运行（pytest、jest、vitest 等六种运行器）去测，旧权重有 123 次说“通过了”，编码门控这一版一次都没有。</p><a href="#coding">看 2,100 次真实运行 ↓</a></div>
+        <div><p class="tl-k">在自己的电脑上就能跑</p><p class="tl-v">43.9<small>ms</small></p><p class="tl-d">一段状态问 5 道题的中位耗时，一次前向就出全部结果，不生成 token。权重常驻显存大约 1.4 GB，我用的是一张 8 GB 的 RTX 5060。服务只监听 127.0.0.1。</p><a href="#start">快速开始 ↓</a></div>
       </div>
-      <p class="tl-who"><b>适合：</b>在做 Agent 或编码助手、需要又快又便宜的门控、路由、打分的人。<b>不适合：</b>写代码、写回复、解释错误，这些仍然交给大模型。</p>
+      <p class="tl-who">如果你在做 Agent 或编码助手，需要一个便宜、快的地方做门控、路由或打分，可以试试它。写代码、写回复、解释报错这些需要写字的活儿，还是交给大模型。</p>
     </section>
 
     <section id="overview" class="section-wrap">
-      <div class="intro"><h2>状态进去，<br>分布出来。</h2><p>AgentJev 不写句子。给它一段状态和已经写好的问题，一次前向就返回每个选项的概率，解码出的 token 数是 0。它适合在 Agent 循环里做门控、路由和评分；解释错误、改代码、起草回复，仍然交给更大的模型。</p></div>
+      <div class="intro"><h2>它做的事</h2><p>AgentJev 不写句子。你给它一段状态（测试输出、diff、日志都可以）和几道写好选项的题，它跑一次前向，把每个选项的概率返回给你。我把它放在 Agent 循环里做门控、路由和打分；解释错误、改代码、起草回复这些，我还是交给更大的模型。</p></div>
       <figure class="framework">
         <div class="fig-scroll" tabindex="0" role="region" aria-label="图 1，在小屏上可以左右滑动">
           <svg class="fw" viewBox="0 0 1100 420" role="img" aria-labelledby="fw-title fw-desc">
@@ -511,39 +520,39 @@ html{scroll-padding-top:64px}
             <text class="z" x="1080" y="378" text-anchor="end">0</text>
           </svg>
         </div>
-        <figcaption>图 1. 一次请求怎么变成分布：状态只编码一次，每个候选是一条独立的路径，一次前向后按题做 softmax。图里的数字来自 RTX 5060 上的这一次真实请求。<a href="#replay">看实测回放</a></figcaption>
+        <figcaption>图 1. 一个请求是怎么变成概率的。状态只编码一次，每个候选单独一条路径，一次前向后按题做 softmax。图里的数字来自 RTX 5060 上的一次真实请求。<a href="#replay">看实测回放</a></figcaption>
       </figure>
     </section>
 
     <section class="abstract section-wrap" aria-labelledby="abstract-title">
-      <h2 id="abstract-title">概述</h2>
+      <h2 id="abstract-title">为什么做这个</h2>
       <div>
-        <p>Agent 循环里的大部分分叉只需要一个判断：测试过了没有，下一步调哪个工具，这条命令能不能执行。常见做法是让 27B–70B 的大模型把一个布尔值写成一段话，再去解析这段话。AgentJev-0.6B 换了一种做法：骨干是去掉语言模型头的 Qwen3-0.6B，一个与排列等变的小头给整组候选打分，按题做 softmax；服务端把同一状态的候选路径合成一棵前缀树，一次前向编码完，生成的 token 数恒为 0。</p>
-        <p>在 Typed Decisions 官方测试集的 2,000 道决策上，AgentJev 的 top-1 为 79.25%，比 Laya 已发布的检查点高 2.25 个百分点（95% 区间 [+0.65, +3.90]）。在 2,100 次真实测试运行上继续训练之后，测试集里失败却被判成“通过”的案例从 123 个降到 0 个。在一块 RTX 5060 上，单案中位时延从 278 ms 降到 43.9 ms。代码和权重以 Apache-2.0 发布。</p>
+        <p>Agent 跑起来以后，大部分分叉其实只要一个判断：测试过了没有，下一步调哪个工具，这条命令能不能执行。常见的做法是让一个 27B–70B 的大模型把判断写成一段话，再去解析这段话。我嫌它慢，输出格式也不稳，所以换了个做法：用去掉语言模型头的 Qwen3-0.6B 当骨干，接一个与排列等变的小打分头，把一道题的所有候选放在一起打分，按题做 softmax。同一段状态下的候选路径在服务端合成一棵前缀树，一次前向编码完，全程不生成 token。</p>
+        <p>在 Typed Decisions 官方测试集的 2,000 道题上，它的 top-1 是 79.25%，比 Laya 公开的检查点高 2.25 个百分点（95% 区间 [+0.65, +3.90]）。之后我又用 2,100 次真实测试运行接着训练，测试集里明明失败却被判成“通过”的情况从 123 次降到了 0。在一块 RTX 5060 上，单个案例的中位时延从 278 ms 降到 43.9 ms。代码和权重都用 Apache-2.0 发布。</p>
       </div>
     </section>
 
-    <section id="method" class="band"><div class="section-wrap">
-      <div class="section-heading"><h2>一次前向，怎么给出分布</h2><p>状态只读一遍，每个候选走自己的因果路径。题目和选项的意思写在正文里，id 只用来对应返回结果。</p></div>
+    <section id="method" class="band"><div class="dots" data-dots="band" aria-hidden="true"><canvas></canvas></div><div class="section-wrap">
+      <div class="section-heading"><h2>它是怎么算的</h2><p>状态只读一遍，每个候选单独一条因果路径。题目和选项的意思直接写在文本里，id 只是用来对应返回结果。</p></div>
       <figure class="teaser">
         <div class="teaser-frame">
           <video id="video" src="media/agentjev-demo.mp4" poster="media/agentjev-demo-poster.jpg" width="1920" height="1080" muted playsinline preload="metadata" aria-label="82 秒演示：测试门控、编码门控的前后对比、Claude Code 钩子，以及它为什么快。中英字幕已烧进画面。"></video>
           <button class="sound-toggle" id="sound" type="button" aria-pressed="false" title="打开声音"><svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/></svg><svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><span>声音关</span></button>
         </div>
         <ol class="chapters" id="chapters" aria-label="演示章节"></ol>
-        <figcaption>82 秒演示，配原创轻音乐（没有旁白），中英字幕已烧进画面。画面里的每个数字都来自这台 RTX 5060 上的实测。<a href="media/agentjev-demo.mp4" download>下载 MP4（6.7 MB）</a></figcaption>
+        <figcaption>82 秒演示。配乐是原创的，没有旁白，中英字幕直接做在画面里。里面的每个数字都是我在这台 RTX 5060 上实测的。<a href="media/agentjev-demo.mp4" download>下载 MP4（8.9 MB）</a></figcaption>
       </figure>
       <ol class="steps">
         <li><span class="step-number">1</span><h3>写下状态和问题</h3><p>状态可以是测试输出、diff、日志或 JSON。题目有三种：Boolean 问一个命题，Choice 在 2–255 个选项里选，Score 判断落在 2–10 级里的哪一级。</p></li>
         <li><span class="step-number">2</span><h3>合成前缀树</h3><p>每个候选是一条 [状态][问题][候选] 路径。同一状态的路径合成一棵树，每个 token 只关注自己和祖先，候选读不到兄弟候选。</p></li>
         <li><span class="step-number">3</span><h3>一次前向</h3><p>骨干是去掉语言模型头的 Qwen3-0.6B。一个与排列等变的小头给整组候选打分，再按题做 softmax。</p></li>
-        <li><span class="step-number">4</span><h3>读分布</h3><p>每道题返回完整分布：Boolean 给 P(true)，Choice 给 margin，Score 给 score = Σ i·Pᵢ。拿它和你自己的门槛比。</p></li>
+        <li><span class="step-number">4</span><h3>读分布</h3><p>每道题返回完整分布：Boolean 给 P(true)，Choice 给 margin，Score 给 score = Σ i·Pᵢ。门槛由你自己定。</p></li>
       </ol>
       <p class="method-footnote">上下文上限是 2,048 token，超长就拒绝，不截断。前缀树和逐条编码在 2,000 道题上有 1,998 道选中同一个选项，变了的两道原本就是平局，概率最大差 0.0053。</p>
     </div></section>
 
     <section id="replay" class="section-wrap block" aria-labelledby="replay-title">
-      <div class="section-heading"><h2 id="replay-title">看它答一次</h2><p>下面回放的是 RTX 5060 上的真实请求与输出，已加载校准温度。可以换示例，也可以切到 v1 权重对比；为了看清过程，动画放慢了，底栏是这次请求的实测耗时。</p></div>
+      <div class="section-heading"><h2 id="replay-title">实测回放</h2><p>下面是 RTX 5060 上真实请求和输出的回放，已经加载了校准温度。可以换示例，也可以切到 v1 权重对比。动画是我故意放慢的，底栏是这次请求的实际耗时。</p></div>
       <figure>
         <div class="console" id="console">
           <div class="c-head">
@@ -573,7 +582,7 @@ html{scroll-padding-top:64px}
     </section>
 
     <section id="results" class="section-wrap block" aria-labelledby="results-title">
-      <div class="section-heading"><h2 id="results-title">答得更准，也更快</h2><p>Typed Decisions 官方测试集：400 个案例，每个案例一段状态、五道题，四个工作流，共 2,000 道决策。时延在一块 RTX 5060（8 GB）上测量。</p></div>
+      <div class="section-heading"><h2 id="results-title">Typed Decisions 上的成绩</h2><p>用的是 Typed Decisions 官方测试集：400 个案例，每个案例一段状态、五道题，覆盖四个工作流，一共 2,000 道题。时延都是在一块 RTX 5060（8 GB）上测的。</p></div>
       <div class="result-highlights">
         <div><p class="result-label">Typed Decisions top-1</p><p class="result-value"><span class="from">77.00</span><span class="arrow" aria-hidden="true">→</span><span>79.25</span><span class="unit">%</span></p><p>Laya 已发布检查点 → AgentJev。按案例 bootstrap，差值的 95% 区间为 [+0.65, +3.90]。</p></div>
         <div><p class="result-label">测试失败却被判“通过”</p><p class="result-value"><span class="from">123</span><span class="arrow" aria-hidden="true">→</span><span>0</span><span class="unit">/ 348</span></p><p>编码门控新权重，测试集里的 348 个失败案例。</p></div>
@@ -617,11 +626,11 @@ html{scroll-padding-top:64px}
           </table></div>
         </div>
       </div>
-      <div class="note-row"><h3>这张表怎么读</h3><div><p>Laya 已发布权重用了全部 1,200 个官方训练案例。本轮留出 120 个开发案例和 120 个校准案例，按开发集软交叉熵选出第 600 步，然后才打开测试集。温度是每种原语一个正标量，只在校准集上拟合。</p><p>标签是教师分布，里面有合成案例。在这里赢下一行，不等于拉取请求合并了、事件被遏制了，或者发票付出去了。</p></div></div>
+      <div class="note-row"><h3>关于这张表</h3><div><p>Laya 公开的权重用了全部 1,200 个官方训练案例。我这一轮留出了 120 个开发案例和 120 个校准案例，按开发集的软交叉熵选了第 600 步，之后才打开测试集。温度是每种原语一个正标量，只在校准集上拟合。</p><p>标签是教师分布，里面有合成案例。在这张表上多赢一行，不代表 PR 就能合并、事故就能控制住，或者发票就能付出去。</p></div></div>
     </section>
 
     <section id="coding" class="section-wrap block" aria-labelledby="coding-title">
-      <div class="section-heading"><h2 id="coding-title">测试没过，就不能说通过</h2><p>Typed Decisions 里没有测试运行器的输出。<code>coding_gates/</code> 补上了这一块：2,100 次真实运行，覆盖 pytest、unittest、jest、mocha、vitest 和 node --test，每个项目的结果在构建时就已确定；另有 1,800 条一行摘要。vitest 和 node --test 整体留出，不参与训练。</p></div>
+      <div class="section-heading"><h2 id="coding-title">编码门控：测试到底过没过</h2><p>Typed Decisions 里没有测试运行器的输出，所以我自己补了一份 <code>coding_gates/</code>：2,100 次真实运行，覆盖 pytest、unittest、jest、mocha、vitest 和 node --test，每个项目的结果在构建时就定好了；另外还有 1,800 条一行摘要。vitest 和 node --test 整个留出来，不参与训练。</p></div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="表 3，在小屏上可以左右滑动"><table>
         
         <thead><tr><th scope="col">表 3. 编码门控</th><th scope="col">v1</th><th scope="col" class="ours">新权重 · coding-gates</th></tr></thead>
@@ -648,7 +657,7 @@ html{scroll-padding-top:64px}
           </div>
           <div class="grid-key"><span><i style="background:var(--bad)"></i>失败却被判成通过</span><span><i style="background:var(--warn)"></i>实际通过却被拦下</span><span><i style="background:#9cc9ad"></i>通过，判对</span><span><i style="background:#e3e8f1"></i>失败，判对</span></div>
         </div>
-        <figcaption>图 4. 每格一个案例，悬停看原文。切换权重，看哪些失败被判成了“通过”。</figcaption>
+        <figcaption>图 4. 每格是一个案例，鼠标停上去能看原文。切换权重，可以看到哪些失败被判成了“通过”。</figcaption>
       </figure>
       <div class="note-row"><h3>还没解决的</h3><div><p>新权重在极简问法 “Tests passing?”（criteria 只有 yes / no）上只有 83.1%；node 的 <code>dot</code> 报告器会让它拦下实际通过的运行；Go 的 <code>? pkg [no test files]</code> 会被读成“没跑测试”。项目规模小、由程序生成，一行摘要来自模板，测试集和训练集共用模板。</p><p>新权重在 Hugging Face 的 <a href="https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates" target="_blank" rel="noopener">coding-gates 分支</a>，只换了权重和温度，默认仍是 v1。<a href="https://github.com/malevrigns/agent-jev/blob/main/coding_gates/README.md" target="_blank" rel="noopener">完整报告 ↗</a></p></div></div>
     </section>
@@ -671,12 +680,12 @@ html{scroll-padding-top:64px}
       <div class="note-row"><h3>和 Laya 怎么比</h3><div><p>Laya 发布的检查点在原基准机器上测得单案 P50 41.53 ms、P90 47.14 ms，没有在这块显卡上重测，所以上表不是与 Laya 的同机对比。Laya 的上下文上限是 1,024 token，AgentJev 是 2,048；宽负载里，Laya 的 64 个候选每个都要对状态完整前向一次，AgentJev 每个请求只读一遍状态。</p></div></div>
     </section>
 
-    <section id="hook" class="band" aria-labelledby="hook-title"><div class="section-wrap">
-      <div class="section-heading"><h2 id="hook-title">工具执行之前，先过一道门</h2><p><code>agentjev_hook.py</code> 是 Claude Code 的一个 PreToolUse 命令钩子。执行 Bash、Write、Edit 之前，它把这次调用发给本地服务，问一道 Boolean（安全吗）和一道四级 Score（风险多高）。它从不输出 <code>allow</code>，不会绕过你自己的权限设置；服务不响应时直接退出，调用照常走权限流程。</p></div>
+    <section id="hook" class="band" aria-labelledby="hook-title"><div class="dots" data-dots="band" aria-hidden="true"><canvas></canvas></div><div class="section-wrap">
+      <div class="section-heading"><h2 id="hook-title">接进 Claude Code</h2><p><code>agentjev_hook.py</code> 是一个 Claude Code 的 PreToolUse 钩子。每次要执行 Bash、Write、Edit 之前，它把这次调用发给本地服务，问两道题：安不安全（Boolean），风险几级（四级 Score）。它从来不输出 <code>allow</code>，所以不会绕过你自己的权限设置；服务没响应的话它直接退出，调用照常走你的权限流程。</p></div>
       <div class="decisions">
-        <div><span class="tag deny">deny</span><p>风险第 3 级并且判为不安全：只拦下这一次调用，把理由交给 Claude，Claude 可以换一步继续。</p></div>
-        <div><span class="tag ask">ask</span><p>风险第 2 级及以上，或 P(安全) &lt; 0.5：弹窗请你确认。</p></div>
-        <div><span class="tag none">不表态</span><p>其余情况什么都不输出，按你自己的权限设置走。</p></div>
+        <div><span class="tag deny">deny</span><p>风险 L3，并且判为不安全：只拦下这一次调用，把理由告诉 Claude，它可以换一种做法继续。</p></div>
+        <div><span class="tag ask">ask</span><p>风险 L2 及以上，或者 P(安全) &lt; 0.5：弹窗让你确认。</p></div>
+        <div><span class="tag none">不表态</span><p>其他情况它什么都不输出，按你自己的权限设置走。</p></div>
       </div>
       <div class="table-scroll" style="background:#fff" tabindex="0" role="region" aria-label="表 5，在小屏上可以左右滑动"><table class="hook-table">
         
@@ -701,9 +710,9 @@ html{scroll-padding-top:64px}
     <section id="start" class="section-wrap block" aria-labelledby="start-title">
       <div class="start-inner">
         <div class="side">
-          <h2 id="start-title">五分钟跑起来</h2>
-          <p>需要 Python 3.10+ 和一块 CUDA 显卡，权重常驻约 1.4 GB 显存；CPU 也能跑，但慢很多。服务只绑定 127.0.0.1。</p>
-          <a href="guide.html">构造请求、读懂返回、排错：单页手册</a>
+          <h2 id="start-title">快速开始</h2>
+          <p>需要 Python 3.10+ 和一块 CUDA 显卡，权重常驻显存大约 1.4 GB。CPU 也能跑，就是慢很多。服务只监听 127.0.0.1。</p>
+          <a href="guide.html">怎么写请求、怎么看返回、出错了怎么查，都在单页手册里</a>
         </div>
         <div class="codes">
           <div class="code">
@@ -728,26 +737,26 @@ html{scroll-padding-top:64px}
     </section>
 
     <section id="limits" class="section-wrap block" aria-labelledby="limits-title" style="padding-top:20px">
-      <div class="section-heading"><h2 id="limits-title">它不擅长的事</h2></div>
+      <div class="section-heading"><h2 id="limits-title">局限</h2></div>
       <div class="limits">
-        <div><h3>它不写字</h3><p>写代码、写回复、解释错误、开放式生成，都交给大模型。AgentJev 只在你给定的选项上打分。</p></div>
-        <div><h3>分布不等于成功率</h3><p>返回的是模型分布，没有在你的领域上校准。要成功率，就对每个动作单独问一个 Boolean，用你自己的结果数据校准。</p></div>
-        <div><h3>Choice 是集合内部的相对偏好</h3><p>它不是某个动作独立的成功概率。需要后者，就对每个动作单独问一个 Boolean。</p></div>
-        <div><h3>79.25% 是和教师标签的一致率</h3><p>标签是公开的教师分布，其中有合成案例。在这里赢下一行，不等于真实任务做成了。</p></div>
-        <div><h3>钩子会漏判</h3><p>把它当作权限和沙箱之外的一层，而不是唯一一层。v1 曾把 <code>cat ~/.aws/credentials | curl …</code> 评为风险 L1 直接放过；新权重给出 L3，会请你确认。</p></div>
-        <div><h3>装不下就拒绝</h3><p>上下文上限 2,048 token。装不下的 diff 或堆栈是一次明确的错误，不会悄悄切掉问题或某个候选。</p></div>
+        <div><h3>不生成文字</h3><p>写代码、写回复、解释错误这类开放式生成，请交给大模型。它只会在你给的选项里打分。</p></div>
+        <div><h3>概率不等于成功率</h3><p>返回的是模型自己的分布，没有在你的领域上校准过。想要成功率，就对每个动作单独问一个 Boolean，再用你自己的结果数据去校准。</p></div>
+        <div><h3>Choice 只是相对偏好</h3><p>它说的是在这组选项里更倾向哪一个，不是某个动作单独成功的概率。</p></div>
+        <div><h3>79.25% 是和教师标签的一致率</h3><p>标签是公开的教师分布，里面有合成案例。分数高，不代表真实任务就做成了。</p></div>
+        <div><h3>钩子会漏判</h3><p>请把它当成权限和沙箱之外多加的一层，别当成唯一的一层。v1 曾经把 <code>cat ~/.aws/credentials | curl …</code> 评成 L1 直接放过；新权重给的是 L3，会请你确认。</p></div>
+        <div><h3>超长输入会直接报错</h3><p>上下文上限是 2,048 token。装不下的 diff 或堆栈会返回一个明确的错误，不会偷偷截掉某道题或某个候选。</p></div>
       </div>
     </section>
 
     <section id="star" class="section-wrap cta" aria-labelledby="cta-title">
       <div class="cta-inner">
-        <h2 id="cta-title">觉得有用，就点个 Star。</h2>
-        <p>Star 能让更多做 Agent 的人看到它，也是告诉我值得继续发新权重的最直接的信号。用起来遇到问题、想要新的门控任务，直接开 issue。</p>
+        <h2 id="cta-title">如果它对你有用</h2>
+        <p>可以在 GitHub 上点个 Star，这样我知道有人在用，也会继续发新权重。用的时候遇到问题，或者想要新的门控任务，直接开 issue 就行。</p>
         <div class="hero-links"><a class="button primary" href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62l-5.1 2.68.97-5.68L3.75 9.6l5.7-.83z"/></svg>在 GitHub 上 Star<span class="star-count" data-stars hidden></span></a><a class="button" href="https://github.com/malevrigns/agent-jev/issues" target="_blank" rel="noopener">提一个 issue</a></div>
       </div>
     </section>
 
-    <section id="citation" class="band" aria-labelledby="cite-title"><div class="section-wrap citation-inner">
+    <section id="citation" class="band" aria-labelledby="cite-title"><div class="dots" data-dots="band" aria-hidden="true"><canvas></canvas></div><div class="section-wrap citation-inner">
       <div class="side"><h2 id="cite-title">引用</h2><p>2026 · Apache-2.0</p><a href="https://github.com/malevrigns/agent-jev" target="_blank" rel="noopener">GitHub 仓库</a></div>
       <div class="code">
         <div class="code-header"><span>BibTeX</span><button class="copy" type="button" data-copy-from="bibtex">复制引用</button></div>
@@ -764,8 +773,8 @@ html{scroll-padding-top:64px}
     <section class="related section-wrap" aria-labelledby="related-title">
       <h2 id="related-title">相关</h2>
       <div class="related-grid">
-        <a class="related-card" href="guide.html"><div><h3>单页参考手册</h3><p>构造请求、读懂返回、写好问题、批量与性能、排错，含可以直接在浏览器里改的请求构造器和门槛演示。</p></div><span class="visit">打开手册</span></a>
-        <a class="related-card" href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" target="_blank" rel="noopener"><div><h3>Typed Decisions</h3><p>本页表 1 用的评测集：400 个测试案例，2,000 道 Boolean、Choice 和 Score 决策。</p></div><span class="visit">查看数据集 <span aria-hidden="true">↗</span></span></a>
+        <a class="related-card" href="guide.html"><div><h3>单页参考手册</h3><p>怎么写请求和题目、怎么看返回、怎么批量提速、出错了怎么查。里面有一个能直接在浏览器里改的请求构造器。</p></div><span class="visit">打开手册</span></a>
+        <a class="related-card" href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" target="_blank" rel="noopener"><div><h3>Typed Decisions</h3><p>表 1 用的评测集，400 个测试案例，一共 2,000 道 Boolean、Choice 和 Score 题。</p></div><span class="visit">查看数据集 <span aria-hidden="true">↗</span></span></a>
       </div>
     </section>
   </main>
@@ -979,6 +988,72 @@ function setRows(box,probs,alive,ms=900){
   const set=()=>{const on=pastHero&&!atEnd;bar.classList.toggle("on",on);bar.inert=!on};
   new IntersectionObserver(([e])=>{pastHero=!e.isIntersecting&&e.boundingClientRect.top<0;set()}).observe(hero);
   if(end)new IntersectionObserver(([e])=>{atEnd=e.isIntersecting;set()},{threshold:.2}).observe(end);
+})();
+
+/* dot grid: dots near the cursor light up and lean away; a soft light sweeps across now and then */
+(function dotGrid(){
+  const hosts=$$("[data-dots]");if(!hosts.length)return;
+  const DPR=Math.min(2,window.devicePixelRatio||1), GAP=24, R=190;
+  const cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const mouse={x:-1e5,y:-1e5};
+  const F=hosts.map(h=>({h,c:h.querySelector("canvas"),kind:h.dataset.dots,w:0,ht:0,pts:[],visible:false}));
+  F.forEach(f=>f.ctx=f.c.getContext("2d"));
+  function layout(f){
+    if(f.kind==="hero"){const hero=$(".hero");if(hero)f.h.style.height=Math.round(hero.getBoundingClientRect().bottom+scrollY+70)+"px"}
+    const r=f.h.getBoundingClientRect();f.w=r.width;f.ht=r.height;
+    f.c.width=Math.max(1,Math.round(f.w*DPR));f.c.height=Math.max(1,Math.round(f.ht*DPR));f.ctx.setTransform(DPR,0,0,DPR,0,0);
+    const cols=Math.floor(f.w/GAP)+1, rows=Math.floor(f.ht/GAP)+1, ox=(f.w-(cols-1)*GAP)/2, oy=(f.ht-(rows-1)*GAP)/2;
+    f.pts=[];
+    for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+      const x=ox+i*GAP,y=oy+j*GAP;
+      let k=cl(Math.min(y/90,(f.ht-y)/(f.kind==="hero"?220:120)),0,1);
+      if(f.kind==="hero"){const dx=(x-f.w/2)/(Math.min(f.w,1180)*.46),dy=(y-f.ht*.5)/(f.ht*.36);k*=cl((Math.hypot(dx,dy)-.5)/.55,.22,1)}
+      if(k>0.01)f.pts.push({x,y,k});
+    }
+    f.dirty=true;
+  }
+  const base=f=>f.kind==="hero"?.26:.3;
+  let sweepAt=performance.now()+1200;const SW=2400, EVERY=6500;
+  function draw(f,now){
+    const ctx=f.ctx;ctx.clearRect(0,0,f.w,f.ht);
+    const r=f.h.getBoundingClientRect(), mx=mouse.x-r.left, my=mouse.y-r.top;
+    const near=mx>-R&&my>-R&&mx<f.w+R&&my<f.ht+R&&!RM;
+    const sp=RM?-1:(now-sweepAt)/SW, sweeping=sp>=0&&sp<=1;
+    const pos=sp*(f.w+f.ht+600)-300, b=base(f);
+    if(near){const g=ctx.createRadialGradient(mx,my,0,mx,my,R*1.15);g.addColorStop(0,"rgba(62,85,165,.13)");g.addColorStop(.55,"rgba(62,85,165,.05)");g.addColorStop(1,"rgba(62,85,165,0)");ctx.fillStyle=g;ctx.fillRect(mx-R*1.2,my-R*1.2,R*2.4,R*2.4)}
+    ctx.fillStyle="#3e55a5";
+    for(const p of f.pts){
+      let a=b*p.k, rad=1.2, x=p.x, y=p.y;
+      if(near){const dx=x-mx,dy=y-my,d2=dx*dx+dy*dy;
+        if(d2<R*R){const d=Math.sqrt(d2)||1,t=1-d/R,tt=t*t;a+=1*tt*Math.max(p.k,.75);rad+=2.1*tt;const push=10*tt/d;x+=dx*push;y+=dy*push}}
+      if(sweeping){const s=(p.x*.8+p.y)-pos,w=Math.exp(-(s*s)/9800);a+=.55*w*p.k;rad+=.95*w}
+      if(a<.012)continue;
+      ctx.globalAlpha=a>1?1:a;ctx.beginPath();ctx.arc(x,y,rad,0,6.2832);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    return near||sweeping;
+  }
+  let raf=0,st=0,wasActive=false,moved=true;
+  function frame(now){
+    raf=0;
+    if(!RM&&now>sweepAt+SW)sweepAt=now+EVERY;
+    const sweepingNow=!RM&&now>=sweepAt&&now<=sweepAt+SW;
+    let active=false;
+    F.forEach(f=>{if(!f.visible)return;if(f.dirty||wasActive||moved||sweepingNow){active=draw(f,now)||active;f.dirty=false}});
+    wasActive=active;moved=false;
+    if(active)raf=requestAnimationFrame(frame);
+    else if(!RM){clearTimeout(st);st=setTimeout(tick,Math.max(16,sweepAt-performance.now()))}
+  }
+  function tick(){if(!raf)raf=requestAnimationFrame(frame)}
+  const io=new IntersectionObserver(es=>{es.forEach(e=>{const f=F.find(x=>x.h===e.target);f.visible=e.isIntersecting;if(f.visible){f.dirty=true;tick()}})});
+  F.forEach(f=>{layout(f);io.observe(f.h)});
+  let rt=0;const relayout=()=>{clearTimeout(rt);rt=setTimeout(()=>{F.forEach(layout);tick()},120)};
+  addEventListener("resize",relayout);addEventListener("load",relayout);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(relayout);
+  addEventListener("pointermove",e=>{mouse.x=e.clientX;mouse.y=e.clientY;moved=true;tick()},{passive:true});
+  document.addEventListener("pointerleave",()=>{mouse.x=mouse.y=-1e5;moved=true;tick()});
+  addEventListener("scroll",()=>{moved=true;tick()},{passive:true});
+  tick();
 })();
 
 </script>
