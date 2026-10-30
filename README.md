@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <a href="README_zh.md"><img alt="简体中文" src="https://img.shields.io/badge/lang-简体中文-111111?style=flat-square"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache_2.0-111111?style=flat-square"></a>
   <a href="https://huggingface.co/aimeigaoshou/agent-jev"><img alt="Weights on Hugging Face" src="https://img.shields.io/badge/weights-Hugging_Face-C6A36A?style=flat-square"></a>
   <a href="https://huggingface.co/Qwen/Qwen3-0.6B"><img alt="Qwen3-0.6B" src="https://img.shields.io/badge/backbone-Qwen3--0.6B-111111?style=flat-square"></a>
@@ -36,7 +35,7 @@
 
 AgentJev-0.6B does not write. You hand it a state and questions you have already phrased. One forward pass returns a probability for every option. The number of decoded tokens is zero.
 
-Put it where an agent loop needs a gate, a route, or a score. Leave the prose to a larger model.
+Use it as a framework-independent decision service wherever an agent loop needs a gate, a route, or a score. Integrate through the HTTP API or the Python client; the Claude Code hook is one optional example. Leave prose generation to a larger model.
 
 <p align="center">
   <a href="https://malevrigns.github.io/agent-jev/#demo"><img src="assets/agentjev_demo.webp" alt="From the demo video: the README's “23 tests passed, 1 failed.” example, scored by v1 and by the coding-gates weights, then the Claude Code hook." width="100%"></a>
@@ -443,9 +442,5 @@ Serving notes that are easy to miss live in [`jev_service/README.md`](jev_servic
   license      = {Apache-2.0}
 }
 ```
-
-## Community
-
-- [Linux.Do](https://linux.do/) — 本项目非常认可 LinuxDo 社区！
 
 Apache-2.0. See [LICENSE](LICENSE).
