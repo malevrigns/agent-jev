@@ -30,7 +30,12 @@ class DecisionEngine:
         self.checkpoint_sha256 = h.hexdigest()
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
         if self.tokenizer.pad_token_id is None: self.tokenizer.pad_token = self.tokenizer.eos_token
-        bundle = torch.load(checkpoint, map_location='cpu', weights_only=False)
+        if str(checkpoint).endswith('.safetensors'):
+            # A published release file: the bare state dict, served as is.
+            from safetensors.torch import load_file
+            bundle = {'state_dict': load_file(str(checkpoint))}
+        else:
+            bundle = torch.load(checkpoint, map_location='cpu', weights_only=False)
         if bundle.get('encoder_schema', '').startswith('routing_'):
             raise ValueError('Use a general decision checkpoint, not a routing-only fine-tune')
         self.trained_config = bundle.get('config')
@@ -51,11 +56,12 @@ class DecisionEngine:
                 encoder_impl=self.inference_encoder,
                 dtype=getattr(torch, cfg.get('dtype', 'float32')),
                 tree_max_mask_bytes=cfg.get('tree_max_mask_bytes', 64 * 1024 * 1024),
-                tree_attention_impl=cfg.get('tree_attention_impl', 'auto'))
+                tree_attention_impl=cfg.get('tree_attention_impl', 'auto'),
+                pretrained=False)
         else:
             self.inference_encoder = self.encoder
             self.collate = None
-            self.model = AgentJevModel(model_path)
+            self.model = AgentJevModel(model_path, pretrained=False)
         self.model.load_state_dict(bundle['state_dict'], strict=True)
         self.checkpoint_name = Path(checkpoint).parent.name
         del bundle

@@ -1,0 +1,7 @@
+model.safetensors: 1196881242 bytes, sha256 8166e46dc6019ae1... ok
+temperatures.json: 389 bytes, sha256 5e5032896d77c72f... ok
+config.json: 727 bytes, sha256 504a6b58c4271583... ok
+tokenizer.json: 7031645 bytes, sha256 c0382117ea329cdf... ok
+tokenizer_config.json: 9678 bytes, sha256 3c04ed3ca964ea2f... ok
+vocab.json: 2776833 bytes, sha256 ca10d7e9fb3ed185... ok
+merges.txt: 1671853 bytes, sha256 8831e4f1a0444713... ok

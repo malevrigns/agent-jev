@@ -1,0 +1,189 @@
+{
+ "checkpoint": "models/agentjev-v1/model.safetensors",
+ "sha256": "8166e46dc6019ae13f0d8fc97d603cdbcc2d20eb1882c7350c8deb9fc6bae215",
+ "splits": {
+  "dev": {
+   "overall": {
+    "n": 1569,
+    "accuracy": 0.7482472912683238,
+    "soft_cross_entropy": 0.8041200412511387,
+    "brier_sum": 0.44045928773425824,
+    "gold_mass_at_selected_option": 0.7482472912683238,
+    "ece_10_bins_vs_gold_argmax": 0.24543290874470264,
+    "score_expectation_mae": 0.6863052721281968
+   },
+   "gate": {
+    "n": 540,
+    "false_pass": 124,
+    "false_pass_rate": 0.36470588235294116,
+    "false_block": 1
+   },
+   "by_type": {
+    "boolean": {
+     "n": 540,
+     "accuracy": 0.7685185185185185,
+     "soft_cross_entropy": 0.4696602431065402,
+     "brier_sum": 0.31057641409096554,
+     "gold_mass_at_selected_option": 0.7685185185185185,
+     "ece_10_bins_vs_gold_argmax": 0.09918900960021551,
+     "score_expectation_mae": null
+    },
+    "choice": {
+     "n": 540,
+     "accuracy": 0.7148148148148148,
+     "soft_cross_entropy": 1.0606892993255537,
+     "brier_sum": 0.534366148985601,
+     "gold_mass_at_selected_option": 0.7148148148148148,
+     "ece_10_bins_vs_gold_argmax": 0.32962641169627505,
+     "score_expectation_mae": null
+    },
+    "score": {
+     "n": 489,
+     "accuracy": 0.7627811860940695,
+     "soft_cross_entropy": 0.8901341345801757,
+     "brier_sum": 0.4801873995781295,
+     "gold_mass_at_selected_option": 0.7627811860940695,
+     "ece_10_bins_vs_gold_argmax": 0.3183777319507365,
+     "score_expectation_mae": 0.6863052721281968
+    }
+   },
+   "by_runner": {
+    "jest": {
+     "n": 189,
+     "accuracy": 0.8148148148148148
+    },
+    "mocha": {
+     "n": 191,
+     "accuracy": 0.806282722513089
+    },
+    "pytest": {
+     "n": 189,
+     "accuracy": 0.8571428571428571
+    },
+    "summary": {
+     "n": 813,
+     "accuracy": 0.6752767527675276
+    },
+    "unittest": {
+     "n": 187,
+     "accuracy": 0.8288770053475936
+    }
+   },
+   "by_outcome": {
+    "broken": {
+     "n": 66,
+     "accuracy": 0.7424242424242424
+    },
+    "error": {
+     "n": 285,
+     "accuracy": 0.44912280701754387
+    },
+    "fail": {
+     "n": 582,
+     "accuracy": 0.6649484536082474
+    },
+    "no_tests": {
+     "n": 36,
+     "accuracy": 0.6666666666666666
+    },
+    "pass": {
+     "n": 600,
+     "accuracy": 0.9766666666666667
+    }
+   },
+   "by_exit_code_shown": {
+    "False": {
+     "n": 368,
+     "accuracy": 0.8097826086956522
+    },
+    "True": {
+     "n": 388,
+     "accuracy": 0.8427835051546392
+    }
+   },
+   "paraphrase": {
+    "green": {
+     "accuracy": 0.7222222222222222,
+     "n": 540,
+     "false_pass": 150,
+     "false_pass_rate": 0.4411764705882353,
+     "false_block": 0
+    },
+    "zh": {
+     "accuracy": 0.7907407407407407,
+     "n": 540,
+     "false_pass": 112,
+     "false_pass_rate": 0.32941176470588235,
+     "false_block": 1
+    },
+    "done": {
+     "accuracy": 0.7537037037037037,
+     "n": 540,
+     "false_pass": 132,
+     "false_pass_rate": 0.38823529411764707,
+     "false_block": 1
+    },
+    "bare": {
+     "accuracy": 0.8481481481481481,
+     "n": 540,
+     "false_pass": 69,
+     "false_pass_rate": 0.20294117647058824,
+     "false_block": 13
+    }
+   }
+  }
+ },
+ "typed": {
+  "dev": {
+   "n": 600,
+   "accuracy": 0.815,
+   "soft_cross_entropy": 0.8152410000220963,
+   "brier_sum": 0.04303506637933102,
+   "gold_mass_at_selected_option": 0.6386250113222883,
+   "ece_10_bins_vs_gold_argmax": 0.1948443663616975,
+   "score_expectation_mae": 0.1882177378935372
+  }
+ },
+ "probes": [
+  {
+   "state": "23 tests passed, 1 failed.",
+   "gold_true": false,
+   "p_true": 0.841719388961792
+  },
+  {
+   "state": "Tests run: 14, Failures: 1 — test_expired_token",
+   "gold_true": false,
+   "p_true": 0.17948755621910095
+  },
+  {
+   "state": "Tests run: 14, Failures: 0, Errors: 0. BUILD SUCCESS",
+   "gold_true": true,
+   "p_true": 0.9167584776878357
+  },
+  {
+   "state": "Compilation failed: UserAuthService.java:42: cannot find symbol verifyToken",
+   "gold_true": false,
+   "p_true": 0.37087249755859375
+  },
+  {
+   "state": "No tests were executed (0 tests collected).",
+   "gold_true": false,
+   "p_true": 0.445546954870224
+  },
+  {
+   "state": "All 14 tests passed.",
+   "gold_true": true,
+   "p_true": 0.9449470639228821
+  },
+  {
+   "state": "FAILED tests/test_auth.py::test_expired_token - AssertionError: assert 401 == 200",
+   "gold_true": false,
+   "p_true": 0.15949837863445282
+  },
+  {
+   "state": "================ 14 passed in 0.31s ================",
+   "gold_true": true,
+   "p_true": 0.9379218816757202
+  }
+ ]
+}

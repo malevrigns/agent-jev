@@ -1,0 +1,233 @@
+{
+ "ood": {
+  "questions": 847,
+  "cases": 300,
+  "baseline": 0.7508854781582054,
+  "candidate": 0.9031877213695395,
+  "difference": 0.15230224321133412,
+  "ci95": [
+   0.1276849642004773,
+   0.17780429594272076
+  ]
+ },
+ "ood/paraphrase:bare": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.87,
+  "candidate": 0.8966666666666666,
+  "difference": 0.02666666666666667,
+  "ci95": [
+   0.01,
+   0.04666666666666667
+  ]
+ },
+ "ood/paraphrase:done": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.9,
+  "candidate": 0.92,
+  "difference": 0.02,
+  "ci95": [
+   0.0033333333333333335,
+   0.04
+  ]
+ },
+ "ood/paraphrase:green": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.85,
+  "candidate": 0.92,
+  "difference": 0.07,
+  "ci95": [
+   0.03666666666666667,
+   0.10333333333333333
+  ]
+ },
+ "ood/paraphrase:red": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.9266666666666666,
+  "candidate": 0.9733333333333334,
+  "difference": 0.04666666666666667,
+  "ci95": [
+   0.023333333333333334,
+   0.07
+  ]
+ },
+ "ood/paraphrase:shows_pass": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.88,
+  "candidate": 0.93,
+  "difference": 0.05,
+  "ci95": [
+   0.02666666666666667,
+   0.07666666666666666
+  ]
+ },
+ "ood/paraphrase:terse": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.6833333333333333,
+  "candidate": 0.7866666666666666,
+  "difference": 0.10333333333333333,
+  "ci95": [
+   0.056666666666666664,
+   0.15
+  ]
+ },
+ "ood/paraphrase:zh": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.8666666666666667,
+  "candidate": 0.9433333333333334,
+  "difference": 0.07666666666666666,
+  "ci95": [
+   0.04666666666666667,
+   0.10666666666666667
+  ]
+ },
+ "ood/paraphrase:zh_bare": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.8733333333333333,
+  "candidate": 0.8933333333333333,
+  "difference": 0.02,
+  "ci95": [
+   0.0033333333333333335,
+   0.04
+  ]
+ },
+ "ood/paraphrase:zh_task_done": {
+  "questions": 300,
+  "cases": 300,
+  "baseline": 0.89,
+  "candidate": 0.95,
+  "difference": 0.06,
+  "ci95": [
+   0.02666666666666667,
+   0.09666666666666666
+  ]
+ },
+ "test": {
+  "questions": 1598,
+  "cases": 551,
+  "baseline": 0.7484355444305382,
+  "candidate": 0.9962453066332916,
+  "difference": 0.24780976220275344,
+  "ci95": [
+   0.22068803879310345,
+   0.274705125891516
+  ]
+ },
+ "test/paraphrase:bare": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.8584392014519057,
+  "candidate": 0.9981851179673321,
+  "difference": 0.1397459165154265,
+  "ci95": [
+   0.11070780399274047,
+   0.16878402903811252
+  ]
+ },
+ "test/paraphrase:done": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.7604355716878403,
+  "candidate": 1.0,
+  "difference": 0.2395644283121597,
+  "ci95": [
+   0.20326678765880218,
+   0.27586206896551724
+  ]
+ },
+ "test/paraphrase:green": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.7223230490018149,
+  "candidate": 1.0,
+  "difference": 0.2776769509981851,
+  "ci95": [
+   0.2413793103448276,
+   0.3157894736842105
+  ]
+ },
+ "test/paraphrase:red": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.8058076225045372,
+  "candidate": 0.9981851179673321,
+  "difference": 0.19237749546279492,
+  "ci95": [
+   0.15970961887477314,
+   0.22686025408348456
+  ]
+ },
+ "test/paraphrase:shows_pass": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.7513611615245009,
+  "candidate": 0.9546279491833031,
+  "difference": 0.20326678765880218,
+  "ci95": [
+   0.1705989110707804,
+   0.23774954627949182
+  ]
+ },
+ "test/paraphrase:terse": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.7477313974591652,
+  "candidate": 0.8312159709618875,
+  "difference": 0.08348457350272233,
+  "ci95": [
+   0.056261343012704176,
+   0.11252268602540835
+  ]
+ },
+ "test/paraphrase:zh": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.8021778584392014,
+  "candidate": 0.9963702359346642,
+  "difference": 0.19419237749546278,
+  "ci95": [
+   0.16152450090744103,
+   0.22867513611615245
+  ]
+ },
+ "test/paraphrase:zh_bare": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.8366606170598911,
+  "candidate": 0.9963702359346642,
+  "difference": 0.15970961887477314,
+  "ci95": [
+   0.12885662431941924,
+   0.19056261343012704
+  ]
+ },
+ "test/paraphrase:zh_task_done": {
+  "questions": 551,
+  "cases": 551,
+  "baseline": 0.778584392014519,
+  "candidate": 1.0,
+  "difference": 0.22141560798548093,
+  "ci95": [
+   0.1869328493647913,
+   0.2558983666061706
+  ]
+ },
+ "typed_test": {
+  "questions": 2000,
+  "cases": 400,
+  "baseline": 0.795,
+  "candidate": 0.8085,
+  "difference": 0.0135,
+  "ci95": [
+   0.002,
+   0.025
+  ]
+ }
+}

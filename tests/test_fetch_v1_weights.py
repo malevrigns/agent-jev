@@ -6,8 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fetch_v1_weights import (SAFETENSORS_TO_TORCH, V1_DTYPE, V1_FILES, V1_REVISION,
-                              safetensors_dtypes, sha256_of, verify_file)
+from fetch_v1_weights import (RELEASES, SAFETENSORS_TO_TORCH, V1_DTYPE, V1_FILES, V1_REVISION,
+                              safetensors_dtypes, serve_command, sha256_of, verify_file)
 
 
 def write_safetensors(path, dtypes):
@@ -67,13 +67,37 @@ class PinnedReleaseTests(unittest.TestCase):
         int(V1_REVISION, 16)
         self.assertEqual(V1_DTYPE, 'BF16')
         self.assertEqual(SAFETENSORS_TO_TORCH[V1_DTYPE], 'bfloat16')
-        self.assertEqual(set(V1_FILES), {'model.safetensors', 'temperatures.json'})
         for name, expected in V1_FILES.items():
             with self.subTest(name=name):
                 self.assertIsInstance(expected['bytes'], int)
                 self.assertGreater(expected['bytes'], 0)
                 self.assertEqual(len(expected['sha256']), 64)
                 int(expected['sha256'], 16)
+
+    def test_release_alone_is_enough_to_serve(self):
+        # Weights, calibration, the skeleton config and a complete tokenizer:
+        # without tokenizer_config.json the special tokens silently change.
+        self.assertEqual(set(V1_FILES), {'model.safetensors', 'temperatures.json', 'config.json',
+                                         'tokenizer.json', 'tokenizer_config.json',
+                                         'vocab.json', 'merges.txt'})
+
+    def test_coding_gates_variant_changes_only_weights_and_temperatures(self):
+        revision, files, directory = RELEASES['coding-gates']
+        self.assertEqual(len(revision), 40)
+        int(revision, 16)
+        self.assertNotEqual(revision, V1_REVISION)
+        self.assertEqual(set(files), set(V1_FILES))
+        self.assertEqual({name for name in files if files[name] != V1_FILES[name]},
+                         {'model.safetensors', 'temperatures.json'})
+        self.assertEqual(directory, Path('models/agentjev-coding-gates'))
+        self.assertEqual(RELEASES['v1'], (V1_REVISION, V1_FILES, Path('models/agentjev-v1')))
+
+    def test_printed_command_serves_the_downloaded_directory(self):
+        command = serve_command(Path('models') / 'agentjev-v1')
+        self.assertIn('--checkpoint ' + str(Path('models/agentjev-v1/model.safetensors')), command)
+        self.assertIn('--model-path ' + str(Path('models/agentjev-v1')) + ' ', command)
+        self.assertIn('--temperatures ' + str(Path('models/agentjev-v1/temperatures.json')), command)
+        self.assertTrue(command.endswith('--port 8149'))
 
 
 if __name__ == '__main__':

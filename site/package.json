@@ -1,0 +1,10 @@
+{
+  "name": "agentjev-site",
+  "private": true,
+  "description": "Build tools for the AgentJev website (docs/) and demo video: puppeteer-core drives Chrome, @fontsource supplies the self-hosted fonts",
+  "dependencies": {
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "puppeteer-core": "24.43.1"
+  }
+}

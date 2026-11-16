@@ -24,7 +24,7 @@ jobs:
       - name: Candidate v8 tests
         run: python -m unittest jev_service.test_candidate_v8 -v
       - name: Syntax check
-        run: python -m compileall -q agentjev jev_service tests fetch_v1_weights.py
+        run: python -m compileall -q agentjev jev_service coding_gates tests fetch_v1_weights.py
 
   train-smoke:
     runs-on: ubuntu-latest

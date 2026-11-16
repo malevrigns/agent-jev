@@ -1,0 +1,24 @@
+{
+ "model_dir": "models\\agentjev-v1",
+ "out": "coding_gates/runs/attempt1",
+ "train_layers": 8,
+ "steps": 600,
+ "gate_per_step": 4,
+ "typed_per_step": 4,
+ "lr": 1e-05,
+ "head_lr": 0.0001,
+ "eval_every": 50,
+ "seed": 20261014,
+ "dev_limit": 0,
+ "largest_batch": false,
+ "init": "v1 release 7d433994 (model.safetensors sha256 8166e46d...)",
+ "trainable": "decoder layers 20-27, final norm, candidate head",
+ "loss": "soft cross-entropy + 0.1 * Brier, mean over questions; Typed Decisions replay in every step",
+ "selection": "Evaluate step 0 and every eval_every steps on gate dev and Typed Decisions dev. A step is eligible if its Typed Decisions dev soft CE <= step 0's + 0.01. Choose the eligible step with the lowest gate dev soft CE; ties go to the earlier step. Test splits are not read.",
+ "data": {
+  "gate_train": 2509,
+  "gate_dev": 540,
+  "typed_train": 960,
+  "typed_dev": 120
+ }
+}

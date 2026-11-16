@@ -1,0 +1,27 @@
+model.safetensors: 1196881242 bytes, sha256 d8e39f94dc949f45... ok
+temperatures.json: 403 bytes, sha256 7716193b27bb1276... ok
+config.json: 727 bytes, sha256 504a6b58c4271583... ok
+tokenizer.json: 7031645 bytes, sha256 c0382117ea329cdf... ok
+tokenizer_config.json: 9678 bytes, sha256 3c04ed3ca964ea2f... ok
+vocab.json: 2776833 bytes, sha256 ca10d7e9fb3ed185... ok
+merges.txt: 1671853 bytes, sha256 8831e4f1a0444713... ok
+{
+  "variant": "coding-gates",
+  "revision": "359aa94b1af47ba4a2b2f969e99f40516cc3054e",
+  "tensors": 343,
+  "dtype": "BF16",
+  "model_dir": "models\\agentjev-coding-gates",
+  "files": [
+    "config.json",
+    "merges.txt",
+    "model.safetensors",
+    "temperatures.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "vocab.json"
+  ]
+}
+
+Start the service with:
+
+python -m jev_service.server --checkpoint models\agentjev-coding-gates\model.safetensors --model-path models\agentjev-coding-gates --temperatures models\agentjev-coding-gates\temperatures.json --port 8149

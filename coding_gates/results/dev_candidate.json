@@ -1,0 +1,194 @@
+{
+ "checkpoint": "coding_gates/runs/gates_v2/selected.safetensors",
+ "sha256": "d8e39f94dc949f459b5b5ce254311a2ef99c010b0036b847dc670bebf3a8f2d8",
+ "splits": {
+  "dev": {
+   "overall": {
+    "n": 1569,
+    "accuracy": 0.9961759082217974,
+    "soft_cross_entropy": 0.015640706820072885,
+    "brier_sum": 0.006442242710852443,
+    "gold_mass_at_selected_option": 0.9961759082217974,
+    "ece_10_bins_vs_gold_argmax": 0.0033389340927070777,
+    "score_expectation_mae": 0.012581342152868056
+   },
+   "gate": {
+    "n": 540,
+    "negatives": 340,
+    "false_pass": 0,
+    "false_pass_rate": 0.0,
+    "false_block": 0
+   },
+   "by_type": {
+    "boolean": {
+     "n": 540,
+     "accuracy": 1.0,
+     "soft_cross_entropy": 6.16336192498017e-05,
+     "brier_sum": 7.127458836523771e-07,
+     "gold_mass_at_selected_option": 1.0,
+     "ece_10_bins_vs_gold_argmax": 6.145415482694538e-05,
+     "score_expectation_mae": null
+    },
+    "choice": {
+     "n": 540,
+     "accuracy": 1.0,
+     "soft_cross_entropy": 3.5505651401567004e-05,
+     "brier_sum": 1.4434525893215658e-07,
+     "gold_mass_at_selected_option": 1.0,
+     "ece_10_bins_vs_gold_argmax": 3.546895804229511e-05,
+     "score_expectation_mae": null
+    },
+    "score": {
+     "n": 489,
+     "accuracy": 0.9877300613496932,
+     "soft_cross_entropy": 0.05007732882319554,
+     "brier_sum": 0.020669562339694244,
+     "gold_mass_at_selected_option": 0.9877300613496932,
+     "ece_10_bins_vs_gold_argmax": 0.010820298716578242,
+     "score_expectation_mae": 0.012581342152868056
+    }
+   },
+   "by_runner": {
+    "jest": {
+     "n": 189,
+     "accuracy": 1.0
+    },
+    "mocha": {
+     "n": 191,
+     "accuracy": 1.0
+    },
+    "pytest": {
+     "n": 189,
+     "accuracy": 0.9947089947089947
+    },
+    "summary": {
+     "n": 813,
+     "accuracy": 0.993849938499385
+    },
+    "unittest": {
+     "n": 187,
+     "accuracy": 1.0
+    }
+   },
+   "by_outcome": {
+    "broken": {
+     "n": 66,
+     "accuracy": 1.0
+    },
+    "error": {
+     "n": 285,
+     "accuracy": 0.9964912280701754
+    },
+    "fail": {
+     "n": 582,
+     "accuracy": 0.9914089347079038
+    },
+    "no_tests": {
+     "n": 36,
+     "accuracy": 1.0
+    },
+    "pass": {
+     "n": 600,
+     "accuracy": 1.0
+    }
+   },
+   "by_exit_code_shown": {
+    "False": {
+     "n": 368,
+     "accuracy": 1.0
+    },
+    "True": {
+     "n": 388,
+     "accuracy": 0.9974226804123711
+    }
+   },
+   "paraphrase": {
+    "green": {
+     "accuracy": 1.0,
+     "n": 540,
+     "negatives": 340,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 0
+    },
+    "zh": {
+     "accuracy": 0.9981481481481481,
+     "n": 540,
+     "negatives": 340,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 1
+    },
+    "done": {
+     "accuracy": 1.0,
+     "n": 540,
+     "negatives": 340,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 0
+    },
+    "bare": {
+     "accuracy": 0.9981481481481481,
+     "n": 540,
+     "negatives": 340,
+     "false_pass": 0,
+     "false_pass_rate": 0.0,
+     "false_block": 1
+    }
+   }
+  }
+ },
+ "typed": {
+  "dev": {
+   "n": 600,
+   "accuracy": 0.81,
+   "soft_cross_entropy": 0.8142263312591962,
+   "brier_sum": 0.043025390892760335,
+   "gold_mass_at_selected_option": 0.6367305582611767,
+   "ece_10_bins_vs_gold_argmax": 0.18532909616827964,
+   "score_expectation_mae": 0.18127945483670882
+  }
+ },
+ "probes": [
+  {
+   "state": "23 tests passed, 1 failed.",
+   "gold_true": false,
+   "p_true": 0.24434654414653778
+  },
+  {
+   "state": "Tests run: 14, Failures: 1 — test_expired_token",
+   "gold_true": false,
+   "p_true": 4.870315387961455e-05
+  },
+  {
+   "state": "Tests run: 14, Failures: 0, Errors: 0. BUILD SUCCESS",
+   "gold_true": true,
+   "p_true": 0.9999991655349731
+  },
+  {
+   "state": "Compilation failed: UserAuthService.java:42: cannot find symbol verifyToken",
+   "gold_true": false,
+   "p_true": 0.013681433163583279
+  },
+  {
+   "state": "No tests were executed (0 tests collected).",
+   "gold_true": false,
+   "p_true": 0.998112678527832
+  },
+  {
+   "state": "All 14 tests passed.",
+   "gold_true": true,
+   "p_true": 0.9999997615814209
+  },
+  {
+   "state": "FAILED tests/test_auth.py::test_expired_token - AssertionError: assert 401 == 200",
+   "gold_true": false,
+   "p_true": 0.0008461527759209275
+  },
+  {
+   "state": "================ 14 passed in 0.31s ================",
+   "gold_true": true,
+   "p_true": 0.9999998807907104
+  }
+ ]
+}
